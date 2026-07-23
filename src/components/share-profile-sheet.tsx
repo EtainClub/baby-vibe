@@ -106,7 +106,7 @@ export function ShareProfileSheet({
     if (!qrDataUrl) return;
     const link = document.createElement("a");
     link.href = qrDataUrl;
-    link.download = `${username}-moa-qr.png`;
+    link.download = `${username}-baby-vibe-qr.png`;
     link.click();
     onNotice("QR 코드를 저장했어요");
   }

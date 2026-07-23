@@ -6,11 +6,11 @@ import { getFirebaseClientServices } from "@/lib/firebase/client";
 
 const MAX_FILE_BYTES = 5 * 1024 * 1024;
 const MAX_EDGE = 1600;
-const ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
+// Any browser-decodable image is accepted; toWebp re-encodes it to WebP.
 
 async function toWebp(file: File) {
-  if (!ALLOWED_TYPES.has(file.type)) {
-    throw new AppError("invalid_image", "JPG, PNG 또는 WebP 이미지를 선택해 주세요.");
+  if (!file.type.startsWith("image/")) {
+    throw new AppError("invalid_image", "이미지 파일을 선택해 주세요.");
   }
   if (file.size > MAX_FILE_BYTES) {
     throw new AppError("image_too_large", "이미지는 5MB 이하로 선택해 주세요.");
@@ -46,7 +46,8 @@ export async function uploadProfileImage(file: File) {
     contentType: "image/webp",
     cacheControl: "public,max-age=3600",
   });
-  return getDownloadURL(imageRef);
+  const url = await getDownloadURL(imageRef);
+  return `${url}&_v=${Date.now()}`;
 }
 
 export async function uploadAppCover(file: File, appId: string) {
@@ -63,5 +64,6 @@ export async function uploadAppCover(file: File, appId: string) {
     contentType: "image/webp",
     cacheControl: "public,max-age=3600",
   });
-  return getDownloadURL(imageRef);
+  const url = await getDownloadURL(imageRef);
+  return `${url}&_v=${Date.now()}`;
 }

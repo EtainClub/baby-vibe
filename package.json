@@ -6,11 +6,12 @@
     "dev": "next dev",
     "build": "next build --webpack",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "deploy": "IS_WEBPACK_TEST=1 NEXT_PUBLIC_APP_URL=https://baby-vibe.web.app firebase deploy --only hosting,storage,firestore"
   },
   "dependencies": {
     "firebase": "^12.16.0",
-    "firebase-admin": "^14.2.0",
+    "firebase-admin": "^12.7.0",
     "next": "16.2.11",
     "qrcode": "^1.5.4",
     "react": "19.2.4",

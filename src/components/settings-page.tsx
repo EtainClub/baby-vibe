@@ -175,7 +175,7 @@ export default function SettingsPage() {
             <label className="field-group">
               <span>사용자명</span>
               <div className="settings-username">
-                <i>moa.page/</i>
+                <i>baby-vibe.web.app/</i>
                 <input value={profile.username} disabled />
               </div>
               <small>첫 버전에서는 사용자명을 변경할 수 없어요.</small>

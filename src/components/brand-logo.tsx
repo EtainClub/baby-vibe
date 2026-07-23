@@ -12,9 +12,9 @@ export function BrandMark({ small = false }: { small?: boolean }) {
 
 export function BrandLogo({ compact = false }: { compact?: boolean }) {
   return (
-    <Link className="brand-logo" href="/" aria-label="모아 홈">
+    <Link className="brand-logo" href="/" aria-label="Baby Vibe 홈">
       <BrandMark small={compact} />
-      <span>모아</span>
+      <span>Baby&nbsp;Vibe</span>
     </Link>
   );
 }

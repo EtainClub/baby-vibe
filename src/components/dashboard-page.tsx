@@ -1,7 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { signOut } from "firebase/auth";
 import { AppCover } from "@/components/app-cover";
 import { BrandLogo } from "@/components/brand-logo";
 import { ShareProfileSheet } from "@/components/share-profile-sheet";
@@ -16,8 +18,10 @@ import {
   MoreIcon,
   PlusIcon,
   ShareIcon,
+  SignOutIcon,
   SparkleIcon,
 } from "@/components/icons";
+import { getFirebaseClientServices } from "@/lib/firebase/client";
 import { demoApps, statusLabel } from "@/lib/mock-data";
 import { uploadAppCover } from "@/lib/firebase/upload-image";
 import { useSheetDrag } from "@/lib/ui/use-sheet-drag";
@@ -53,8 +57,12 @@ export default function DashboardPage() {
   const [profile, setProfile] = useState({
     username: "etime",
     displayName: "E-time",
+    photoURL: null as string | null,
   });
   const [usingSavedApps, setUsingSavedApps] = useState(false);
+  const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
+  const router = useRouter();
   const appsRef = useRef(apps);
   const { sheetRef: addSheetRef, dragHandleProps: addSheetDragHandleProps } =
     useSheetDrag<HTMLElement>({
@@ -76,12 +84,13 @@ export default function DashboardPage() {
       ]);
       if (profileResponse?.ok && !cancelled) {
         const profileResult = (await profileResponse.json()) as {
-          data?: { username?: string; displayName?: string };
+          data?: { username?: string; displayName?: string; photoURL?: string | null };
         };
         if (profileResult.data?.username && profileResult.data.displayName) {
           setProfile({
             username: profileResult.data.username,
             displayName: profileResult.data.displayName,
+            photoURL: profileResult.data.photoURL ?? null,
           });
         }
       }
@@ -248,8 +257,8 @@ export default function DashboardPage() {
 
   function chooseSheetCover(file?: File) {
     if (!file) return;
-    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
-      setSheetError("JPG, PNG 또는 WebP 이미지를 선택해 주세요.");
+    if (!file.type.startsWith("image/")) {
+      setSheetError("이미지 파일을 선택해 주세요.");
       return;
     }
     if (file.size > 5 * 1024 * 1024) {
@@ -319,16 +328,23 @@ export default function DashboardPage() {
       const savedId = editingAppId || result.data?.id || null;
       let savedImageURL = sheetImageURL;
       let imageUploadFailed = false;
-      if (sheetCoverFile && savedId && response.ok) {
+      let imageErrorText = "";
+      if (sheetCoverFile && savedId) {
         try {
           savedImageURL = await uploadAppCover(sheetCoverFile, savedId);
-          await fetch(`/api/apps/${savedId}`, {
+          const imageRes = await fetch(`/api/apps/${savedId}`, {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ imageURL: savedImageURL }),
           });
-        } catch {
+          if (!imageRes.ok && ![401, 503].includes(imageRes.status)) {
+            throw new Error("이미지 주소를 저장하지 못했어요.");
+          }
+        } catch (caught) {
           imageUploadFailed = true;
+          imageErrorText =
+            caught instanceof Error ? caught.message : String(caught);
+          console.error("앱 커버 업로드 실패:", caught);
         }
       }
 
@@ -381,14 +397,15 @@ export default function DashboardPage() {
           },
         ]);
       }
-      setSheetOpen(false);
-      showToast(
-        imageUploadFailed
-          ? "앱은 저장했지만 이미지는 올리지 못했어요"
-          : editingAppId
-            ? "앱 정보를 수정했어요"
-            : "새 앱을 추가했어요",
-      );
+      if (imageUploadFailed) {
+        setSheetError(
+          `이미지를 올리지 못했어요: ${imageErrorText || "알 수 없는 오류"}`,
+        );
+        showToast("앱 정보는 저장했지만 이미지는 올리지 못했어요");
+      } else {
+        setSheetOpen(false);
+        showToast(editingAppId ? "앱 정보를 수정했어요" : "새 앱을 추가했어요");
+      }
     } catch (caught) {
       setSheetError(
         caught instanceof Error ? caught.message : "앱을 저장하지 못했어요.",
@@ -508,6 +525,20 @@ export default function DashboardPage() {
     setShareOpen(true);
   }
 
+  async function handleLogout() {
+    if (loggingOut) return;
+    setLoggingOut(true);
+    setProfileMenuOpen(false);
+    try {
+      const services = getFirebaseClientServices();
+      if (services) await signOut(services.auth).catch(() => undefined);
+      await fetch("/api/auth/session", { method: "DELETE" }).catch(() => null);
+    } finally {
+      router.push("/");
+      router.refresh();
+    }
+  }
+
   return (
     <div className="dashboard-shell">
       <aside className="dashboard-rail">
@@ -526,23 +557,122 @@ export default function DashboardPage() {
             프로필 설정
           </Link>
         </nav>
-        <div className="dashboard-profile">
-          <span className="dashboard-avatar">
-            {profile.displayName.charAt(0).toUpperCase()}
-          </span>
-          <span>
-            <strong>{profile.displayName}</strong>
-            <small>@{profile.username}</small>
-          </span>
-          <MoreIcon />
+        <div className="dashboard-profile-wrap">
+          <button
+            type="button"
+            className="dashboard-profile"
+            aria-haspopup="menu"
+            aria-expanded={profileMenuOpen}
+            onClick={() => setProfileMenuOpen((open) => !open)}
+          >
+            <span
+              className="dashboard-avatar"
+              style={
+                profile.photoURL
+                  ? {
+                      backgroundImage: `url("${profile.photoURL.replace(/["\\]/g, "")}")`,
+                      backgroundSize: "cover",
+                      backgroundPosition: "center",
+                      color: "transparent",
+                    }
+                  : undefined
+              }
+            >
+              {!profile.photoURL && profile.displayName.charAt(0).toUpperCase()}
+            </span>
+            <span>
+              <strong>{profile.displayName}</strong>
+              <small>@{profile.username}</small>
+            </span>
+            <MoreIcon />
+          </button>
+          {profileMenuOpen && (
+            <>
+              <button
+                className="profile-menu-backdrop"
+                aria-hidden="true"
+                tabIndex={-1}
+                onClick={() => setProfileMenuOpen(false)}
+              />
+              <div className="profile-menu" role="menu">
+                <Link
+                  href="/settings"
+                  role="menuitem"
+                  onClick={() => setProfileMenuOpen(false)}
+                >
+                  <SparkleIcon />
+                  프로필 설정
+                </Link>
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="is-destructive"
+                  onClick={handleLogout}
+                  disabled={loggingOut}
+                >
+                  <SignOutIcon />
+                  {loggingOut ? "로그아웃 중…" : "로그아웃"}
+                </button>
+              </div>
+            </>
+          )}
         </div>
       </aside>
 
       <main className="dashboard-main">
         <header className="dashboard-mobile-header">
           <BrandLogo compact />
-          <div className="dashboard-avatar">
-            {profile.displayName.charAt(0).toUpperCase()}
+          <div className="dashboard-mobile-profile">
+            <button
+              type="button"
+              className="dashboard-avatar"
+              style={
+                profile.photoURL
+                  ? {
+                      backgroundImage: `url("${profile.photoURL.replace(/["\\]/g, "")}")`,
+                      backgroundSize: "cover",
+                      backgroundPosition: "center",
+                      color: "transparent",
+                    }
+                  : undefined
+              }
+              aria-label="프로필 메뉴"
+              aria-haspopup="menu"
+              aria-expanded={profileMenuOpen}
+              onClick={() => setProfileMenuOpen((open) => !open)}
+            >
+              {!profile.photoURL && profile.displayName.charAt(0).toUpperCase()}
+            </button>
+            {profileMenuOpen && (
+              <>
+                <button
+                  className="profile-menu-backdrop"
+                  aria-hidden="true"
+                  tabIndex={-1}
+                  onClick={() => setProfileMenuOpen(false)}
+                />
+                <div className="profile-menu" role="menu">
+                  <Link
+                    href="/settings"
+                    role="menuitem"
+                    onClick={() => setProfileMenuOpen(false)}
+                  >
+                    <SparkleIcon />
+                    프로필 설정
+                  </Link>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="is-destructive"
+                    onClick={handleLogout}
+                    disabled={loggingOut}
+                  >
+                    <SignOutIcon />
+                    {loggingOut ? "로그아웃 중…" : "로그아웃"}
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </header>
 
@@ -910,8 +1040,8 @@ export default function DashboardPage() {
         ) : (
           <div className="sheet-details">
             <div className="sheet-cover-picker">
-              <div
-                className="sheet-cover-preview"
+              <label
+                className="sheet-cover-preview sheet-cover-drop"
                 style={
                   sheetCoverPreview
                     ? {
@@ -923,19 +1053,27 @@ export default function DashboardPage() {
                 }
               >
                 {!sheetCoverPreview && <SparkleIcon />}
-              </div>
+                <input
+                  className="visually-hidden"
+                  type="file"
+                  accept="image/*"
+                  onChange={(event) => chooseSheetCover(event.target.files?.[0])}
+                />
+              </label>
               <div>
                 <strong>대표 이미지</strong>
-                <p>자동으로 찾은 이미지를 바꾸거나 새 이미지를 올릴 수 있어요.</p>
+                <p aria-live="polite">
+                  {sheetCoverFile
+                    ? "새 이미지가 선택됐어요. 저장하면 반영됩니다."
+                    : "자동으로 찾은 이미지를 바꾸거나 새 이미지를 올릴 수 있어요."}
+                </p>
                 <label className="sheet-cover-button">
-                  이미지 선택
+                  {sheetCoverFile ? "다른 이미지 선택" : "이미지 선택"}
                   <input
                     className="visually-hidden"
                     type="file"
-                    accept="image/jpeg,image/png,image/webp"
-                    onChange={(event) =>
-                      chooseSheetCover(event.target.files?.[0])
-                    }
+                    accept="image/*"
+                    onChange={(event) => chooseSheetCover(event.target.files?.[0])}
                   />
                 </label>
               </div>
@@ -973,12 +1111,13 @@ export default function DashboardPage() {
                   value={sheetTool}
                   onChange={(event) => setSheetTool(event.target.value)}
                 >
+                  <option value="codex">Codex</option>
+                  <option value="claude-code">Claude Code</option>
                   <option value="lovable">Lovable</option>
                   <option value="bolt">Bolt</option>
                   <option value="replit">Replit</option>
                   <option value="v0">v0</option>
                   <option value="base44">Base44</option>
-                  <option value="claude-code">Claude Code</option>
                   <option value="cursor">Cursor</option>
                   <option value="firebase-studio">Firebase Studio</option>
                   <option value="other">기타</option>

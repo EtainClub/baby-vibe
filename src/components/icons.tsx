@@ -22,6 +22,15 @@ function IconBase({
   );
 }
 
+export function SignOutIcon(props: IconProps) {
+  return (
+    <IconBase {...props}>
+      <path d="M9 5H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h3" />
+      <path d="M16 17l5-5-5-5" />
+      <path d="M21 12H9" />
+    </IconBase>
+  );
+}
 export function ArrowRightIcon(props: IconProps) {
   return (
     <IconBase {...props}>

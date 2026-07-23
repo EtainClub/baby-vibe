@@ -3,7 +3,6 @@ import "server-only";
 import {
   applicationDefault,
   cert,
-  getApp,
   getApps,
   initializeApp,
   type App,
@@ -14,9 +13,9 @@ import { getStorage } from "firebase-admin/storage";
 import { FirebaseConfigurationError } from "@/lib/errors";
 
 function getAdminCredential() {
-  const projectId = process.env.FIREBASE_ADMIN_PROJECT_ID;
-  const clientEmail = process.env.FIREBASE_ADMIN_CLIENT_EMAIL;
-  const privateKey = process.env.FIREBASE_ADMIN_PRIVATE_KEY?.replace(/\\n/g, "\n");
+  const projectId = process.env.FB_ADMIN_PROJECT_ID;
+  const clientEmail = process.env.FB_ADMIN_CLIENT_EMAIL;
+  const privateKey = process.env.FB_ADMIN_PRIVATE_KEY?.replace(/\\n/g, "\n");
 
   if (projectId && clientEmail && privateKey) {
     return cert({ projectId, clientEmail, privateKey });
@@ -35,26 +34,34 @@ export function isFirebaseAdminConfigured() {
       process.env.FIREBASE_AUTH_EMULATOR_HOST,
   );
   return Boolean(
-    process.env.FIREBASE_ADMIN_PROJECT_ID &&
+    process.env.FB_ADMIN_PROJECT_ID &&
       (usesEmulator ||
-        (process.env.FIREBASE_ADMIN_CLIENT_EMAIL &&
-          process.env.FIREBASE_ADMIN_PRIVATE_KEY) ||
+        (process.env.FB_ADMIN_CLIENT_EMAIL &&
+          process.env.FB_ADMIN_PRIVATE_KEY) ||
         process.env.GOOGLE_APPLICATION_CREDENTIALS),
   );
 }
 
+// Firebase Hosting's framework runtime initializes its own named admin app,
+// so we can't rely on getApp()/the default app existing. Use a dedicated app.
+const ADMIN_APP_NAME = "baby-vibe-admin";
+
 export function getFirebaseAdminApp(): App {
-  if (getApps().length) return getApp();
+  const existing = getApps().find((app) => app.name === ADMIN_APP_NAME);
+  if (existing) return existing;
 
   const usesEmulator = Boolean(
     process.env.FIRESTORE_EMULATOR_HOST ||
       process.env.FIREBASE_AUTH_EMULATOR_HOST,
   );
-  return initializeApp({
-    ...(usesEmulator ? {} : { credential: getAdminCredential() }),
-    projectId: process.env.FIREBASE_ADMIN_PROJECT_ID,
-    storageBucket: process.env.FIREBASE_ADMIN_STORAGE_BUCKET,
-  });
+  return initializeApp(
+    {
+      ...(usesEmulator ? {} : { credential: getAdminCredential() }),
+      projectId: process.env.FB_ADMIN_PROJECT_ID,
+      storageBucket: process.env.FB_ADMIN_STORAGE_BUCKET,
+    },
+    ADMIN_APP_NAME,
+  );
 }
 
 export function getAdminAuth() {

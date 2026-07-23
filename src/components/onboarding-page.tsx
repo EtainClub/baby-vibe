@@ -25,12 +25,13 @@ import { onAuthStateChanged } from "firebase/auth";
 type Step = "profile" | "app" | "done";
 
 const tools = [
+  ["codex", "❯", "Codex"],
+  ["claude-code", "✦", "Claude Code"],
   ["lovable", "♥", "Lovable"],
   ["bolt", "↯", "Bolt"],
   ["replit", "R", "Replit"],
   ["v0", "▲", "v0"],
   ["base44", "44", "Base44"],
-  ["claude-code", "✦", "Claude Code"],
   ["cursor", "⌁", "Cursor"],
   ["firebase-studio", "◆", "Firebase Studio"],
   ["other", "＋", "기타"],
@@ -441,7 +442,7 @@ export default function OnboardingPage() {
               <label className="field-group">
                 <span>사용자명</span>
                 <div className="username-input">
-                  <i>moa.page/</i>
+                  <i>baby-vibe.web.app/</i>
                   <input
                     name="username"
                     value={username}
@@ -697,7 +698,7 @@ export default function OnboardingPage() {
               <div className="complete-url">
                 <span>
                   <LinkIcon />
-                  moa.page/{username || "etime"}
+                  baby-vibe.web.app/{username || "etime"}
                 </span>
                 <button type="button" onClick={() => void copyProfileLink()}>
                   {copied ? "복사했어요" : "링크 복사"}

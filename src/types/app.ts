@@ -2,12 +2,13 @@ export const APP_STATUSES = ["live", "building", "paused"] as const;
 export type AppStatus = (typeof APP_STATUSES)[number];
 
 export const VIBE_TOOLS = [
+  "codex",
+  "claude-code",
   "lovable",
   "bolt",
   "replit",
   "v0",
   "base44",
-  "claude-code",
   "cursor",
   "firebase-studio",
   "other",

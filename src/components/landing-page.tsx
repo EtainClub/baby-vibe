@@ -29,7 +29,7 @@ export default function LandingPage() {
         <nav className="site-nav" aria-label="주요 메뉴">
           <BrandLogo />
           <div className="desktop-nav-links">
-            <a href="#why">왜 모아?</a>
+            <a href="#why">왜 Baby Vibe?</a>
             <a href="#how">만드는 방법</a>
             <Link href="/etime">예시 페이지</Link>
           </div>
@@ -54,7 +54,7 @@ export default function LandingPage() {
         </nav>
         <div className={`mobile-nav-panel${menuOpen ? " is-open" : ""}`}>
           <a href="#why" onClick={() => setMenuOpen(false)}>
-            왜 모아?
+            왜 Baby Vibe?
           </a>
           <a href="#how" onClick={() => setMenuOpen(false)}>
             만드는 방법
@@ -120,7 +120,7 @@ export default function LandingPage() {
                 </div>
                 <div className="window-address">
                   <span className="address-lock">●</span>
-                  moa.page/etime
+                  baby-vibe.web.app/etime
                 </div>
                 <span className="window-more">•••</span>
               </div>
@@ -200,7 +200,7 @@ export default function LandingPage() {
           </div>
         </section>
 
-        <section className="belief-strip" aria-label="모아의 제품 원칙">
+        <section className="belief-strip" aria-label="Baby Vibe의 제품 원칙">
           <p>
             GitHub가 없어도.
             <span />
@@ -221,7 +221,7 @@ export default function LandingPage() {
             <p>
               기술을 얼마나 아는지보다, 무언가를 만들었다는 사실이 더 중요해요.
               <br />
-              모아는 당신의 시작을 가장 보기 좋은 모습으로 담아줍니다.
+              Baby Vibe는 당신의 시작을 가장 보기 좋은 모습으로 담아줍니다.
             </p>
           </div>
 
@@ -306,7 +306,7 @@ export default function LandingPage() {
                   <BrandMark small />
                   <span>
                     <b>E-time님의 앱들</b>
-                    moa.page/etime
+                    baby-vibe.web.app/etime
                   </span>
                   <CopyIcon />
                 </div>
@@ -330,7 +330,7 @@ export default function LandingPage() {
                 <br />
                 커피 한 잔보다 빨라요.
               </h2>
-              <p>어려운 설정은 모아가 대신할게요.</p>
+              <p>어려운 설정은 Baby Vibe가 대신할게요.</p>
             </div>
             <div className="steps-list">
               <article className="step-row">
@@ -464,9 +464,9 @@ export default function LandingPage() {
           <div className="footer-links">
             <a href="#why">서비스 소개</a>
             <Link href="/etime">예시 페이지</Link>
-            <a href="mailto:hello@moa.page">문의하기</a>
+            <a href="mailto:hello@baby-vibe.web.app">문의하기</a>
           </div>
-          <span>© 2026 모아</span>
+          <span>© 2026 Baby Vibe</span>
         </div>
       </footer>
     </div>

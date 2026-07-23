@@ -29,7 +29,7 @@ export default function LoginPage() {
               <span className="login-mini-avatar">E</span>
               <div>
                 <strong>E-time님의 앱들</strong>
-                <small>moa.page/etime</small>
+                <small>baby-vibe.web.app/etime</small>
               </div>
               <span className="login-mini-count">3개의 앱</span>
             </div>
