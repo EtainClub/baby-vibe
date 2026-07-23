@@ -1,0 +1,15 @@
+export const RESERVED_USERNAMES = new Set([
+  "home",
+  "start",
+  "login",
+  "logout",
+  "settings",
+  "admin",
+  "api",
+  "go",
+  "explore",
+  "about",
+  "help",
+  "new",
+  "apps",
+]);
