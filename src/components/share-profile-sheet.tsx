@@ -9,6 +9,7 @@ import {
   ShareIcon,
   SparkleIcon,
 } from "@/components/icons";
+import { useSheetDrag } from "@/lib/ui/use-sheet-drag";
 
 interface ShareProfileSheetProps {
   open: boolean;
@@ -50,11 +51,10 @@ export function ShareProfileSheet({
   );
   const [qrDataUrl, setQrDataUrl] = useState("");
   const headingRef = useRef<HTMLHeadingElement>(null);
-  const onCloseRef = useRef(onClose);
-
-  useEffect(() => {
-    onCloseRef.current = onClose;
-  }, [onClose]);
+  const { sheetRef, dragHandleProps } = useSheetDrag<HTMLElement>({
+    open,
+    onDismiss: onClose,
+  });
 
   useEffect(() => {
     if (!open) return;
@@ -72,13 +72,8 @@ export function ShareProfileSheet({
     });
     window.requestAnimationFrame(() => headingRef.current?.focus());
 
-    function closeOnEscape(event: KeyboardEvent) {
-      if (event.key === "Escape") onCloseRef.current();
-    }
-    window.addEventListener("keydown", closeOnEscape);
     return () => {
       cancelled = true;
-      window.removeEventListener("keydown", closeOnEscape);
     };
   }, [open, profileUrl]);
 
@@ -123,13 +118,14 @@ export function ShareProfileSheet({
         onClick={onClose}
       />
       <section
+        ref={sheetRef}
         className={`share-profile-sheet${open ? " is-visible" : ""}`}
         role="dialog"
         aria-modal="true"
         aria-hidden={!open}
         aria-labelledby="share-sheet-title"
       >
-        <div className="sheet-handle" />
+        <div className="sheet-handle" aria-hidden="true" {...dragHandleProps} />
         <header className="share-sheet-heading">
           <div>
             <span>내 페이지 알리기</span>

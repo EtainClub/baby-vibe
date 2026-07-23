@@ -21,6 +21,8 @@
 html {
   scroll-behavior: smooth;
   scroll-padding-top: 96px;
+  text-size-adjust: 100%;
+  -webkit-text-size-adjust: 100%;
 }
 
 body {
@@ -32,6 +34,7 @@ body {
     "Noto Sans KR", "Segoe UI", sans-serif;
   font-size: 16px;
   line-height: 1.55;
+  font-optical-sizing: auto;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
 }
@@ -55,6 +58,11 @@ a {
 
 button {
   color: inherit;
+}
+
+:where(a, button, input, textarea, select):focus-visible {
+  outline: 3px solid rgba(46, 99, 243, 0.46);
+  outline-offset: 3px;
 }
 
 ::selection {
@@ -3113,14 +3121,14 @@ button {
   margin: 0;
   flex-direction: column;
   color: #868781;
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.55;
 }
 
 .aside-tip strong {
   margin-bottom: 3px;
   color: #d1d2cd;
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .aside-app-preview {
@@ -3153,7 +3161,7 @@ button {
 
 .aside-app-preview small {
   color: #858680;
-  font-size: 9px;
+  font-size: 11px;
 }
 
 .aside-app-preview strong {
@@ -3246,7 +3254,7 @@ button {
 
 .avatar-picker span {
   color: #a0a19b;
-  font-size: 9px;
+  font-size: 11px;
 }
 
 .field-group {
@@ -3300,7 +3308,7 @@ button {
 
 .field-group > small {
   color: #a0a19b;
-  font-size: 9px;
+  font-size: 11px;
 }
 
 .field-group .field-success {
@@ -3412,7 +3420,7 @@ button {
 }
 
 .inspect-input button {
-  height: 36px;
+  height: 42px;
   margin-right: 7px;
   padding: 0 12px;
   border: 0;
@@ -3420,7 +3428,7 @@ button {
   background: #22231f;
   color: white;
   cursor: pointer;
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 700;
 }
 
@@ -3458,7 +3466,7 @@ button {
   border-radius: 999px;
   background: rgba(20, 21, 18, 0.72);
   color: white;
-  font-size: 7px;
+  font-size: 10px;
   font-style: normal;
   font-weight: 720;
   opacity: 0;
@@ -3487,7 +3495,7 @@ button {
   align-items: center;
   gap: 3px;
   color: #51a36e;
-  font-size: 8px;
+  font-size: 10px;
   font-weight: 680;
 }
 
@@ -3507,7 +3515,7 @@ button {
   margin: 1px 0 0;
   overflow: hidden;
   color: #888983;
-  font-size: 9px;
+  font-size: 11px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -3529,12 +3537,12 @@ button {
 
 .inspected-description-input {
   color: #888983;
-  font-size: 9px;
+  font-size: 11px;
 }
 
 .inspected-edit-label {
   color: #797a74;
-  font-size: 9px;
+  font-size: 11px;
   white-space: nowrap;
 }
 
@@ -3544,7 +3552,7 @@ button {
   border-radius: 10px;
   background: #fff0ec;
   color: #ae5147;
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.5;
   text-align: left;
 }
@@ -3584,7 +3592,7 @@ button {
   background: white;
   cursor: pointer;
   color: #60615b;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 660;
   text-align: left;
   transition:
@@ -4003,7 +4011,7 @@ button {
 
 .dashboard-profile small {
   color: #999a94;
-  font-size: 9px;
+  font-size: 11px;
 }
 
 .dashboard-profile > svg {
@@ -4036,7 +4044,7 @@ button {
 
 .dashboard-date {
   color: var(--blue);
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 750;
 }
 
@@ -4106,7 +4114,7 @@ button {
 
 .dashboard-milestone > div > span {
   color: #6f87c9;
-  font-size: 8px;
+  font-size: 11px;
   font-weight: 720;
 }
 
@@ -4118,7 +4126,7 @@ button {
 .dashboard-milestone p {
   margin: 2px 0 0;
   color: #78809a;
-  font-size: 9px;
+  font-size: 11px;
 }
 
 .milestone-progress {
@@ -4189,7 +4197,7 @@ button {
 
 .dashboard-achievements strong {
   overflow: hidden;
-  font-size: 8px;
+  font-size: 11px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -4201,7 +4209,7 @@ button {
 }
 
 .dashboard-achievements i {
-  font-size: 7px;
+  font-size: 10px;
   font-style: normal;
 }
 
@@ -4261,7 +4269,7 @@ button {
 
 .stats-grid small {
   color: #91928c;
-  font-size: 9px;
+  font-size: 11px;
 }
 
 .stats-grid strong {
@@ -4283,7 +4291,7 @@ button {
   right: 14px;
   bottom: 14px;
   color: #56a26d;
-  font-size: 8px;
+  font-size: 10px;
   font-style: normal;
   font-weight: 680;
 }
@@ -4309,12 +4317,12 @@ button {
 .dashboard-section-heading p {
   margin: 0;
   color: #999a94;
-  font-size: 9px;
+  font-size: 11px;
 }
 
 .dashboard-section-heading .button {
-  min-height: 39px;
-  font-size: 10px;
+  min-height: 44px;
+  font-size: 11px;
 }
 
 .dashboard-section-heading .button svg {
@@ -4375,7 +4383,7 @@ button {
 .dashboard-app-row {
   position: relative;
   display: grid;
-  grid-template-columns: 26px 71px minmax(180px, 1fr) 115px 70px 44px 52px 35px;
+  grid-template-columns: 26px 71px minmax(180px, 1fr) 115px 70px 44px 88px 44px;
   align-items: center;
   gap: 12px;
   min-height: 94px;
@@ -4413,14 +4421,14 @@ button {
 }
 
 .row-edit-button {
-  min-height: 31px;
+  min-height: 44px;
   padding: 0 9px;
   border: 1px solid rgba(23, 24, 20, 0.08);
   border-radius: 9px;
   background: #f8f7f3;
   cursor: pointer;
   color: #666761;
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 690;
 }
 
@@ -4518,7 +4526,7 @@ button {
 .dashboard-app-info .first-app-badge {
   min-height: 18px;
   padding-inline: 6px;
-  font-size: 7px;
+  font-size: 10px;
 }
 
 .dashboard-app-info > p {
@@ -4530,18 +4538,18 @@ button {
 
 .dashboard-app-info .tool-badge {
   min-height: 19px;
-  font-size: 7px;
+  font-size: 10px;
 }
 
 .dashboard-app-info .status-pill {
-  font-size: 8px;
+  font-size: 10px;
 }
 
 .dashboard-app-reactions {
   display: flex;
   gap: 12px;
   color: #80817b;
-  font-size: 9px;
+  font-size: 11px;
 }
 
 .dashboard-app-reactions span {
@@ -4561,11 +4569,11 @@ button {
   justify-content: center;
   gap: 5px;
   width: 63px;
-  height: 27px;
+  height: 32px;
   border-radius: 8px;
   background: #e9f4ed;
   color: #558066;
-  font-size: 8px;
+  font-size: 10px;
   font-weight: 680;
 }
 
@@ -4594,8 +4602,8 @@ button {
 .row-order-controls button,
 .row-more-button {
   display: grid;
-  width: 24px;
-  height: 28px;
+  width: 40px;
+  height: 44px;
   padding: 0;
   place-items: center;
   border: 1px solid rgba(23, 24, 20, 0.07);
@@ -4603,7 +4611,7 @@ button {
   background: #f5f3ee;
   color: #767771;
   cursor: pointer;
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .row-order-controls button:disabled {
@@ -4612,8 +4620,8 @@ button {
 }
 
 .row-more-button {
-  width: 31px;
-  height: 31px;
+  width: 44px;
+  height: 44px;
 }
 
 .row-more-button svg {
@@ -4637,14 +4645,14 @@ button {
 }
 
 .row-app-menu button {
-  min-height: 35px;
+  min-height: 44px;
   padding: 0 10px;
   border: 0;
   border-radius: 8px;
   background: transparent;
   cursor: pointer;
   color: #565752;
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 640;
   text-align: left;
 }
@@ -4700,13 +4708,13 @@ button {
 .cross-promo-card p {
   margin: 2px 0 0;
   color: #927d70;
-  font-size: 9px;
+  font-size: 11px;
 }
 
 .cross-promo-card .button {
-  min-height: 38px;
+  min-height: 44px;
   background: rgba(255, 255, 255, 0.7);
-  font-size: 9px;
+  font-size: 11px;
 }
 
 .sheet-scrim {
@@ -4797,7 +4805,7 @@ button {
 
 .share-sheet-heading span {
   color: var(--blue);
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 760;
 }
 
@@ -4812,14 +4820,14 @@ button {
 .share-sheet-heading p {
   margin: 0;
   color: #83847e;
-  font-size: 11px;
+  font-size: 13px;
   line-height: 1.55;
 }
 
 .share-sheet-heading > button {
   display: grid;
-  width: 36px;
-  height: 36px;
+  width: 44px;
+  height: 44px;
   padding: 0;
   place-items: center;
   border: 0;
@@ -4841,7 +4849,7 @@ button {
 }
 
 .share-message-field > span {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 730;
 }
 
@@ -4856,7 +4864,7 @@ button {
   background: rgba(255, 255, 255, 0.88);
   color: var(--ink);
   font: inherit;
-  font-size: 12px;
+  font-size: 14px;
   line-height: 1.65;
 }
 
@@ -4868,7 +4876,7 @@ button {
 .share-message-field small {
   justify-self: end;
   color: #999a94;
-  font-size: 9px;
+  font-size: 11px;
 }
 
 .share-link-row {
@@ -4886,7 +4894,7 @@ button {
 .share-link-row > span {
   overflow: hidden;
   color: #62635d;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 630;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -4895,7 +4903,7 @@ button {
 .share-link-row button,
 .share-qr-card button {
   display: inline-flex;
-  min-height: 37px;
+  min-height: 44px;
   align-items: center;
   gap: 6px;
   padding: 0 12px;
@@ -4904,7 +4912,7 @@ button {
   background: white;
   cursor: pointer;
   color: #4f504b;
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 720;
 }
 
@@ -4931,7 +4939,7 @@ button {
   background: rgba(255, 255, 255, 0.72);
   cursor: pointer;
   color: #52534e;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 700;
 }
 
@@ -4996,13 +5004,13 @@ button {
 
 .share-qr-card strong {
   display: block;
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .share-qr-card p {
   margin: 3px 0 0;
   color: #898a84;
-  font-size: 9px;
+  font-size: 11px;
   line-height: 1.45;
 }
 
@@ -5042,13 +5050,13 @@ button {
 }
 
 .share-cross-promo strong {
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .share-cross-promo small {
   margin-top: 2px;
   color: #927d70;
-  font-size: 8px;
+  font-size: 10px;
 }
 
 .share-profile-sheet button:active,
@@ -5057,11 +5065,30 @@ button {
 }
 
 .sheet-handle {
+  position: relative;
+  width: 68px;
+  height: 28px;
+  margin: -5px auto 8px;
+  border-radius: 14px;
+  background: transparent;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.sheet-handle::after {
+  position: absolute;
+  top: 12px;
+  left: 15px;
   width: 38px;
   height: 4px;
-  margin: 0 auto 22px;
   border-radius: 999px;
-  background: #d2d1cc;
+  background: #c7c6c1;
+  content: "";
+}
+
+.sheet-handle:active {
+  cursor: grabbing;
 }
 
 .sheet-heading {
@@ -5073,7 +5100,7 @@ button {
 
 .sheet-heading span {
   color: var(--blue);
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 730;
 }
 
@@ -5086,13 +5113,13 @@ button {
 .sheet-heading p {
   margin: 0;
   color: #8a8b85;
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .sheet-heading > button {
   display: grid;
-  width: 33px;
-  height: 33px;
+  width: 44px;
+  height: 44px;
   padding: 0;
   place-items: center;
   border: 0;
@@ -5151,7 +5178,7 @@ button {
   background: transparent;
   cursor: pointer;
   color: #73746e;
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 660;
   text-decoration: underline;
   text-decoration-color: rgba(115, 116, 110, 0.35);
@@ -5161,7 +5188,7 @@ button {
 .sheet-help {
   margin: 12px 0 0;
   color: #9b9c96;
-  font-size: 9px;
+  font-size: 11px;
   text-align: center;
 }
 
@@ -5171,7 +5198,7 @@ button {
   border-radius: 9px;
   background: #fff0ec;
   color: #ad5046;
-  font-size: 9px;
+  font-size: 11px;
   line-height: 1.5;
 }
 
@@ -5213,23 +5240,24 @@ button {
 }
 
 .sheet-cover-picker strong {
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .sheet-cover-picker p {
   margin: 2px 0 6px;
   color: #8f908a;
-  font-size: 8px;
+  font-size: 11px;
 }
 
 .sheet-cover-button {
-  padding: 5px 8px;
+  min-height: 40px;
+  padding: 5px 10px;
   border: 1px solid rgba(23, 24, 20, 0.09);
   border-radius: 7px;
   background: white;
   cursor: pointer;
   color: #5e5f59;
-  font-size: 8px;
+  font-size: 11px;
   font-weight: 680;
 }
 
@@ -5304,12 +5332,12 @@ button {
 }
 
 .publish-choice strong {
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .publish-choice small {
   color: #8c8d87;
-  font-size: 8px;
+  font-size: 11px;
 }
 
 .publish-choice input {
@@ -5382,7 +5410,7 @@ button {
   }
 
   .dashboard-app-row {
-    grid-template-columns: 24px 65px minmax(150px, 1fr) 44px 52px 32px;
+    grid-template-columns: 24px 65px minmax(150px, 1fr) 44px 88px 44px;
   }
 
   .row-app-menu {
@@ -5471,7 +5499,7 @@ button {
   }
 
   .dashboard-app-row {
-    grid-template-columns: 58px 1fr 34px;
+    grid-template-columns: 58px 1fr 44px;
     gap: 11px;
     margin-bottom: 9px;
     padding: 11px;
@@ -5747,7 +5775,7 @@ button {
 
 .login-mini-profile small {
   color: #83847e;
-  font-size: 9px;
+  font-size: 11px;
 }
 
 .login-mini-count {
@@ -5755,7 +5783,7 @@ button {
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.08);
   color: #b0b1ab;
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 650;
 }
 
@@ -5840,7 +5868,7 @@ button {
 .login-error {
   margin: 9px 0 0;
   color: #969791;
-  font-size: 9px;
+  font-size: 11px;
   line-height: 1.5;
 }
 
@@ -5853,7 +5881,7 @@ button {
   width: 100%;
   margin: 21px 0 15px;
   color: #a0a19b;
-  font-size: 9px;
+  font-size: 11px;
 }
 
 .login-divider::before {
@@ -5887,7 +5915,7 @@ button {
   padding: 0;
   color: #83847e;
   list-style: none;
-  font-size: 8px;
+  font-size: 11px;
 }
 
 .login-benefits li {
@@ -5907,7 +5935,7 @@ button {
   max-width: 300px;
   margin-top: 22px;
   color: #b0b1ab;
-  font-size: 8px;
+  font-size: 10px;
   line-height: 1.5;
 }
 
@@ -6177,11 +6205,13 @@ button {
 .settings-avatar-row p {
   margin: 3px 0 0;
   color: #999a94;
-  font-size: 9px;
+  font-size: 11px;
 }
 
 .settings-photo-button {
   display: inline-flex;
+  min-height: 40px;
+  align-items: center;
   margin-top: 6px;
   padding: 5px 8px;
   border: 1px solid rgba(23, 24, 20, 0.09);
@@ -6189,7 +6219,7 @@ button {
   background: white;
   cursor: pointer;
   color: #555650;
-  font-size: 8px;
+  font-size: 11px;
   font-weight: 680;
 }
 
@@ -6235,7 +6265,7 @@ button {
   gap: 6px;
   margin: 0 0 10px;
   color: #4c9564;
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .settings-message.is-error {
@@ -6278,14 +6308,14 @@ button {
   border-radius: 8px;
   background: #edf2ff;
   color: #3159c0;
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 680;
 }
 
 .settings-logout {
-  min-height: 34px;
+  min-height: 44px;
   padding-inline: 11px;
-  font-size: 9px;
+  font-size: 11px;
 }
 
 @media (max-width: 720px) {

@@ -20,6 +20,7 @@ import {
 } from "@/components/icons";
 import { demoApps, statusLabel } from "@/lib/mock-data";
 import { uploadAppCover } from "@/lib/firebase/upload-image";
+import { useSheetDrag } from "@/lib/ui/use-sheet-drag";
 import { TOOL_LABELS } from "@/lib/utils/tool-labels";
 import type { VibeTool } from "@/types/app";
 
@@ -55,6 +56,11 @@ export default function DashboardPage() {
   });
   const [usingSavedApps, setUsingSavedApps] = useState(false);
   const appsRef = useRef(apps);
+  const { sheetRef: addSheetRef, dragHandleProps: addSheetDragHandleProps } =
+    useSheetDrag<HTMLElement>({
+      open: sheetOpen,
+      onDismiss: closeSheet,
+    });
 
   useEffect(() => {
     appsRef.current = apps;
@@ -837,15 +843,18 @@ export default function DashboardPage() {
         onClick={closeSheet}
       />
       <section
+        ref={addSheetRef}
         className={`add-app-sheet${sheetOpen ? " is-visible" : ""}`}
+        role="dialog"
+        aria-modal="true"
         aria-hidden={!sheetOpen}
-        aria-label="새 앱 추가"
+        aria-labelledby="add-app-sheet-title"
       >
-        <div className="sheet-handle" />
+        <div className="sheet-handle" aria-hidden="true" {...addSheetDragHandleProps} />
         <div className="sheet-heading">
           <div>
             <span>{editingAppId ? "앱 수정" : "새로운 앱"}</span>
-            <h2>
+            <h2 id="add-app-sheet-title">
               {sheetStep === "url"
                 ? "만든 앱 주소를 붙여넣어 주세요."
                 : editingAppId
