@@ -21,6 +21,9 @@ pnpm build
 
 ## Firebase 연결
 
+상세 설정, 로컬 에뮬레이터, 운영 검증 체크리스트와 후속 구현 계획은
+[`docs/FIREBASE_SETUP_AND_ROADMAP.md`](docs/FIREBASE_SETUP_AND_ROADMAP.md)를 기준으로 관리합니다.
+
 1. Firebase 프로젝트에서 Web App을 만들고 `.env.example`의 `NEXT_PUBLIC_FIREBASE_*` 값을 채웁니다.
 2. Authentication에서 Google 공급자를 활성화합니다.
 3. Firestore와 Storage를 생성합니다.
