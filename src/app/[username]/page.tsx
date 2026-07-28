@@ -1,30 +1,35 @@
 import type { Metadata } from "next";
+import { cache } from "react";
 import { notFound } from "next/navigation";
 import PublicProfilePage from "@/components/public-profile-page";
+import { getSessionUser } from "@/lib/auth/session";
+import { demoCreators } from "@/lib/demo-creators";
 import { isFirebaseAdminConfigured } from "@/lib/firebase/admin";
 import { listPublicAppsForOwner } from "@/lib/repositories/app-repository";
-import { getPublicProfileByUsername } from "@/lib/repositories/user-repository";
+import { listPublicAppNotes } from "@/lib/repositories/app-note-repository";
+import {
+  getPublicProfileByUsername,
+  getUserProfileByUid,
+} from "@/lib/repositories/user-repository";
 import { validateUsername } from "@/lib/validation/username";
-import { demoApps, type DemoApp } from "@/lib/mock-data";
+import type { DemoApp } from "@/lib/mock-data";
 import { TOOL_LABELS } from "@/lib/utils/tool-labels";
 
 const covers: DemoApp["cover"][] = ["alien", "coin", "quiet"];
 const tones: DemoApp["toolTone"][] = ["blue", "pink", "orange"];
 
-async function getPageData(rawUsername: string) {
-  const demoData = {
-    profile: {
-      username: "etime",
-      displayName: "E-time",
-      bio: "생활과 호기심을 작은 앱으로 만들고 있어요.",
-      photoURL: null,
-    },
-    apps: demoApps,
-  };
+function getDemoCreator(username: string) {
+  return demoCreators.find(
+    (creator) => creator.profile.username === username.toLowerCase(),
+  ) ?? null;
+}
 
-  if (!isFirebaseAdminConfigured()) {
-    return rawUsername.toLowerCase() === "etime" ? demoData : null;
-  }
+const getPageData = cache(async function getPageData(rawUsername: string) {
+  const demoCreator = getDemoCreator(rawUsername);
+  const demoPageData = demoCreator
+    ? { ...demoCreator, notesByAppId: {}, notesEnabled: false }
+    : null;
+  if (!isFirebaseAdminConfigured()) return demoPageData;
 
   let username: string;
   try {
@@ -34,8 +39,9 @@ async function getPageData(rawUsername: string) {
   }
 
   const profile = await getPublicProfileByUsername(username);
-  if (!profile) return username === "etime" ? demoData : null;
+  if (!profile) return username === "etime" ? demoPageData : null;
   const apps = await listPublicAppsForOwner(profile.uid);
+  const notesByAppId = await listPublicAppNotes(apps.map((app) => app.id));
 
   return {
     profile: {
@@ -62,7 +68,17 @@ async function getPageData(rawUsername: string) {
         isPublished: true,
       }),
     ),
+    notesByAppId,
+    notesEnabled: true,
   };
+});
+
+async function getViewerUsername() {
+  if (!isFirebaseAdminConfigured()) return "etime";
+  const user = await getSessionUser();
+  if (!user) return null;
+  const profile = await getUserProfileByUid(user.uid);
+  return profile?.username ?? null;
 }
 
 export async function generateMetadata({
@@ -86,8 +102,19 @@ export default async function UserProfilePage({
   params: Promise<{ username: string }>;
 }) {
   const { username } = await params;
-  const data = await getPageData(username);
+  const [data, viewerUsername] = await Promise.all([
+    getPageData(username),
+    getViewerUsername(),
+  ]);
   if (!data) notFound();
 
-  return <PublicProfilePage profile={data.profile} apps={data.apps} />;
+  return (
+    <PublicProfilePage
+      profile={data.profile}
+      apps={data.apps}
+      notesByAppId={data.notesByAppId ?? {}}
+      notesEnabled={data.notesEnabled ?? false}
+      viewerUsername={viewerUsername}
+    />
+  );
 }

@@ -25,6 +25,10 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    match /apps/{appId}/notes/{noteId} {
+      allow read, write: if false;
+    }
+
     match /appStats/{appId} {
       allow read: if owns(resource.data);
       allow write: if false;

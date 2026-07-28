@@ -88,10 +88,29 @@ export function HeartIcon(props: IconProps) {
   );
 }
 
+export function GitHubIcon(props: IconProps) {
+  return (
+    <IconBase {...props}>
+      <path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3.3-.4 6.8-1.6 6.8-7.3A5.7 5.7 0 0 0 19.3 3.3 5.3 5.3 0 0 0 19.1.1S17.9-.3 15 1.6a13.4 13.4 0 0 0-6 0C6.1-.3 4.9.1 4.9.1a5.3 5.3 0 0 0-.2 3.2 5.7 5.7 0 0 0-1.5 3.9c0 5.7 3.5 6.9 6.8 7.3A4.8 4.8 0 0 0 9 18v4" />
+      <path d="M9 18c-4.5 2-5-2-7-2" />
+    </IconBase>
+  );
+}
+
 export function HomeIcon(props: IconProps) {
   return (
     <IconBase {...props}>
       <path d="m3 10 9-7 9 7v9a2 2 0 0 1-2 2h-5v-7h-4v7H5a2 2 0 0 1-2-2Z" />
+    </IconBase>
+  );
+}
+
+export function UsersIcon(props: IconProps) {
+  return (
+    <IconBase {...props}>
+      <path d="M16 20v-1.5A3.5 3.5 0 0 0 12.5 15h-6A3.5 3.5 0 0 0 3 18.5V20" />
+      <circle cx="9.5" cy="8" r="3" />
+      <path d="M16 5.2a3 3 0 0 1 0 5.6M18 15a3.5 3.5 0 0 1 3 3.5V20" />
     </IconBase>
   );
 }

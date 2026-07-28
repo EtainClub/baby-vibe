@@ -5,6 +5,7 @@ import { FormEvent, useEffect, useState } from "react";
 import { BrandLogo } from "@/components/brand-logo";
 import { CheckIcon, ChevronLeftIcon } from "@/components/icons";
 import { LogoutButton } from "@/components/auth/logout-button";
+import { MobileBottomNav } from "@/components/mobile-bottom-nav";
 import { uploadProfileImage } from "@/lib/firebase/upload-image";
 
 interface EditableProfile {
@@ -21,7 +22,7 @@ const fallbackProfile: EditableProfile = {
   photoURL: null,
 };
 
-export default function SettingsPage() {
+export default function SettingsPage({ appVersion }: { appVersion: string }) {
   const [profile, setProfile] = useState(fallbackProfile);
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState("");
@@ -214,9 +215,14 @@ export default function SettingsPage() {
               <span>Google</span>
               <LogoutButton />
             </div>
+            <div className="settings-version" aria-label={`앱 버전 ${appVersion}`}>
+              <span>Baby Vibe</span>
+              <small>버전 {appVersion}</small>
+            </div>
           </div>
         </section>
       </main>
+      <MobileBottomNav active="settings" username={profile.username} />
     </div>
   );
 }

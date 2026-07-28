@@ -245,6 +245,14 @@ export default function OnboardingPage() {
     setPending(true);
     setFormError("");
     setInspectMessage("앱 정보를 확인하고 있어요…");
+    if (appCoverPreview?.startsWith("blob:")) {
+      URL.revokeObjectURL(appCoverPreview);
+    }
+    setAppImageURL(null);
+    setAppFaviconURL(null);
+    setAppCoverFile(null);
+    setAppCoverPreview(null);
+
     try {
       const response = await fetch("/api/inspect", {
         method: "POST",
@@ -269,12 +277,15 @@ export default function OnboardingPage() {
       if (result.data?.description) {
         setAppDescription(result.data.description.slice(0, 140));
       }
-      if (result.data?.image) {
-        setAppImageURL(result.data.image);
-        setAppCoverPreview(result.data.image);
-      }
-      if (result.data?.favicon) setAppFaviconURL(result.data.favicon);
-      setInspectMessage("앱 정보를 찾았어요");
+      const inspectedImageURL = result.data?.image ?? null;
+      setAppImageURL(inspectedImageURL);
+      setAppCoverPreview(inspectedImageURL);
+      setAppFaviconURL(result.data?.favicon ?? null);
+      setInspectMessage(
+        inspectedImageURL
+          ? "앱 정보와 썸네일을 찾았어요"
+          : "썸네일을 찾지 못했어요. 이미지를 직접 등록해 주세요.",
+      );
     } catch {
       setInspectMessage("자동으로 가져오지 못했어요. 직접 입력해도 괜찮아요.");
     } finally {
@@ -296,7 +307,9 @@ export default function OnboardingPage() {
       URL.revokeObjectURL(appCoverPreview);
     }
     setAppCoverFile(file);
+    setAppImageURL(null);
     setAppCoverPreview(URL.createObjectURL(file));
+    setInspectMessage("직접 등록할 썸네일을 선택했어요");
     setFormError("");
   }
 
@@ -550,21 +563,24 @@ export default function OnboardingPage() {
                   className={`inspected-cover${
                     appCoverPreview ? " has-image" : ""
                   }`}
-                  style={
-                    appCoverPreview
-                      ? {
-                          backgroundImage: `url("${appCoverPreview.replace(
-                            /["\\]/g,
-                            "",
-                          )}")`,
-                          backgroundPosition: "center",
-                          backgroundSize: "cover",
-                        }
-                      : undefined
-                  }
                 >
-                  {!appCoverPreview && "👽"}
-                  <i>바꾸기</i>
+                  {appCoverPreview ? (
+                    <img
+                      src={appCoverPreview}
+                      alt=""
+                      onError={() => {
+                        setAppImageURL(null);
+                        setAppCoverFile(null);
+                        setAppCoverPreview(null);
+                        setInspectMessage(
+                          "썸네일을 가져오지 못했어요. 이미지를 직접 등록해 주세요.",
+                        );
+                      }}
+                    />
+                  ) : (
+                    <span className="inspected-cover-empty">이미지 없음</span>
+                  )}
+                  <i>{appCoverPreview ? "바꾸기" : "등록"}</i>
                   <input
                     className="visually-hidden"
                     type="file"
@@ -576,7 +592,7 @@ export default function OnboardingPage() {
                 </label>
                 <div>
                   <span>
-                    <CheckIcon /> {inspectMessage}
+                    {appCoverPreview && <CheckIcon />} {inspectMessage}
                   </span>
                   <input
                     className="inspected-name-input"

@@ -7,6 +7,7 @@ import { signOut } from "firebase/auth";
 import { AppCover } from "@/components/app-cover";
 import { BrandLogo } from "@/components/brand-logo";
 import { ShareProfileSheet } from "@/components/share-profile-sheet";
+import { MobileBottomNav } from "@/components/mobile-bottom-nav";
 import {
   ArrowRightIcon,
   ArrowUpRightIcon,
@@ -20,6 +21,7 @@ import {
   ShareIcon,
   SignOutIcon,
   SparkleIcon,
+  UsersIcon,
 } from "@/components/icons";
 import { getFirebaseClientServices } from "@/lib/firebase/client";
 import { demoApps, statusLabel } from "@/lib/mock-data";
@@ -211,6 +213,14 @@ export default function DashboardPage() {
     }
     setSheetPending(true);
     setSheetError("");
+    if (sheetCoverPreview?.startsWith("blob:")) {
+      URL.revokeObjectURL(sheetCoverPreview);
+    }
+    setSheetImageURL(null);
+    setSheetFaviconURL(null);
+    setSheetCoverFile(null);
+    setSheetCoverPreview(null);
+
     try {
       const response = await fetch("/api/inspect", {
         method: "POST",
@@ -230,11 +240,10 @@ export default function DashboardPage() {
       if (result.data?.description) {
         setSheetDescription(result.data.description.slice(0, 140));
       }
-      if (result.data?.image) {
-        setSheetImageURL(result.data.image);
-        setSheetCoverPreview(result.data.image);
-      }
-      if (result.data?.favicon) setSheetFaviconURL(result.data.favicon);
+      const inspectedImageURL = result.data?.image ?? null;
+      setSheetImageURL(inspectedImageURL);
+      setSheetCoverPreview(inspectedImageURL);
+      setSheetFaviconURL(result.data?.favicon ?? null);
       if (!response.ok) {
         setSheetError(
           result.error?.message ||
@@ -293,19 +302,14 @@ export default function DashboardPage() {
       name: sheetName,
       description: sheetDescription,
       url: sheetUrl || null,
+      imageURL: sheetImageURL,
+      faviconURL: sheetFaviconURL,
       tool: sheetTool,
       customToolName:
         sheetTool === "other" ? sheetCustomToolName.trim() : null,
       status: sheetStatus,
       isPublished: sheetPublished,
     };
-    if (!editingAppId) {
-      payload.imageURL = sheetImageURL;
-      payload.faviconURL = sheetFaviconURL;
-    } else if (sheetImageURL) {
-      payload.imageURL = sheetImageURL;
-      if (sheetFaviconURL) payload.faviconURL = sheetFaviconURL;
-    }
 
     try {
       const response = await fetch(
@@ -547,6 +551,10 @@ export default function DashboardPage() {
           <Link className="is-current" href="/home">
             <HomeIcon />
             내 홈
+          </Link>
+          <Link href="/people">
+            <UsersIcon />
+            둘러보기
           </Link>
           <Link href={`/${profile.username}`}>
             <EyeIcon />
@@ -968,6 +976,8 @@ export default function DashboardPage() {
         </div>
       </main>
 
+      <MobileBottomNav active="home" username={profile.username} />
+
       <div
         className={`sheet-scrim${sheetOpen ? " is-visible" : ""}`}
         onClick={closeSheet}
@@ -1040,19 +1050,20 @@ export default function DashboardPage() {
         ) : (
           <div className="sheet-details">
             <div className="sheet-cover-picker">
-              <label
-                className="sheet-cover-preview sheet-cover-drop"
-                style={
-                  sheetCoverPreview
-                    ? {
-                        backgroundImage: `url("${sheetCoverPreview.replace(/["\\]/g, "")}")`,
-                        backgroundPosition: "center",
-                        backgroundSize: "cover",
-                      }
-                    : undefined
-                }
-              >
-                {!sheetCoverPreview && <SparkleIcon />}
+              <label className="sheet-cover-preview sheet-cover-drop">
+                {sheetCoverPreview ? (
+                  <img
+                    src={sheetCoverPreview}
+                    alt=""
+                    onError={() => {
+                      setSheetImageURL(null);
+                      setSheetCoverFile(null);
+                      setSheetCoverPreview(null);
+                    }}
+                  />
+                ) : (
+                  <span>이미지 없음</span>
+                )}
                 <input
                   className="visually-hidden"
                   type="file"
@@ -1065,7 +1076,9 @@ export default function DashboardPage() {
                 <p aria-live="polite">
                   {sheetCoverFile
                     ? "새 이미지가 선택됐어요. 저장하면 반영됩니다."
-                    : "자동으로 찾은 이미지를 바꾸거나 새 이미지를 올릴 수 있어요."}
+                    : sheetCoverPreview
+                      ? "자동으로 찾은 이미지를 바꾸거나 새 이미지를 올릴 수 있어요."
+                      : "썸네일을 가져오지 못했어요. 이미지 선택에서 직접 등록해 주세요."}
                 </p>
                 <label className="sheet-cover-button">
                   {sheetCoverFile ? "다른 이미지 선택" : "이미지 선택"}

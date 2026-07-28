@@ -1,29 +1,46 @@
+"use client";
+
+import { useState } from "react";
 import type { DemoApp } from "@/lib/mock-data";
 
 export function AppCover({
   kind,
   compact = false,
   imageURL = null,
+  showFallbackArtwork = false,
 }: {
   kind: DemoApp["cover"];
   compact?: boolean;
   imageURL?: string | null;
+  showFallbackArtwork?: boolean;
 }) {
+  const [failedImageURL, setFailedImageURL] = useState<string | null>(null);
+  const hasImage = Boolean(imageURL && imageURL !== failedImageURL);
+  const showArtwork = !hasImage && showFallbackArtwork;
+
   return (
     <div
-      className={`app-cover app-cover-${kind}${compact ? " app-cover-compact" : ""}`}
-      style={
-        imageURL
-          ? {
-              backgroundImage: `linear-gradient(rgba(20, 21, 18, 0.05), rgba(20, 21, 18, 0.05)), url("${imageURL.replace(/["\\]/g, "")}")`,
-              backgroundPosition: "center",
-              backgroundSize: "cover",
-            }
-          : undefined
-      }
+      className={`app-cover app-cover-${kind}${compact ? " app-cover-compact" : ""}${
+        !hasImage && !showArtwork ? " app-cover-empty" : ""
+      }`}
       aria-hidden="true"
     >
-      {!imageURL && kind === "alien" && (
+      {hasImage && imageURL && (
+        <>
+          <img
+            className="app-cover-image"
+            src={imageURL}
+            alt=""
+            draggable={false}
+            onError={() => setFailedImageURL(imageURL)}
+          />
+          <span className="app-cover-image-shade" />
+        </>
+      )}
+      {!hasImage && !showArtwork && (
+        <span className="app-cover-empty-label">이미지 없음</span>
+      )}
+      {showArtwork && kind === "alien" && (
         <>
           <span className="alien-orbit alien-orbit-one" />
           <span className="alien-orbit alien-orbit-two" />
@@ -35,7 +52,7 @@ export function AppCover({
           <span className="cover-label">ALIEN INDEX</span>
         </>
       )}
-      {!imageURL && kind === "coin" && (
+      {showArtwork && kind === "coin" && (
         <>
           <span className="coin coin-one">25</span>
           <span className="coin coin-two">10</span>
@@ -45,7 +62,7 @@ export function AppCover({
           <span className="cover-label">COIN COLLECTOR</span>
         </>
       )}
-      {!imageURL && kind === "quiet" && (
+      {showArtwork && kind === "quiet" && (
         <>
           <span className="quiet-sun" />
           <span className="quiet-hill quiet-hill-back" />

@@ -31,6 +31,7 @@ export default function LandingPage() {
           <div className="desktop-nav-links">
             <a href="#why">왜 Baby Vibe?</a>
             <a href="#how">만드는 방법</a>
+            <Link href="/people">메이커 둘러보기</Link>
             <Link href="/etime">예시 페이지</Link>
           </div>
           <div className="desktop-nav-actions">
@@ -59,6 +60,9 @@ export default function LandingPage() {
           <a href="#how" onClick={() => setMenuOpen(false)}>
             만드는 방법
           </a>
+          <Link href="/people" onClick={() => setMenuOpen(false)}>
+            메이커 둘러보기
+          </Link>
           <Link href="/etime">예시 페이지</Link>
           <Link href="/login">로그인</Link>
           <Link className="button button-dark" href="/login">
@@ -140,7 +144,7 @@ export default function LandingPage() {
                 </div>
                 <div className="demo-app-grid">
                   <article className="demo-app-card">
-                    <AppCover kind={firstApp.cover} compact />
+                    <AppCover kind={firstApp.cover} compact showFallbackArtwork />
                     <div className="demo-app-content">
                       <div className="demo-app-badges">
                         <span className="first-app-badge">나의 첫 앱</span>
@@ -161,7 +165,7 @@ export default function LandingPage() {
                     </div>
                   </article>
                   <article className="demo-app-card demo-app-card-secondary">
-                    <AppCover kind={secondApp.cover} compact />
+                    <AppCover kind={secondApp.cover} compact showFallbackArtwork />
                     <div className="demo-app-content">
                       <div className="demo-app-badges">
                         <span className="tool-badge tool-badge-pink">
@@ -463,6 +467,7 @@ export default function LandingPage() {
           <p>만든 앱을 모으는 가장 다정한 방법.</p>
           <div className="footer-links">
             <a href="#why">서비스 소개</a>
+            <Link href="/people">메이커 둘러보기</Link>
             <Link href="/etime">예시 페이지</Link>
             <a href="mailto:hello@baby-vibe.web.app">문의하기</a>
           </div>

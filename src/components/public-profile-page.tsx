@@ -3,16 +3,20 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { AppCover } from "@/components/app-cover";
+import { AppNotes } from "@/components/app-notes";
 import { BrandLogo } from "@/components/brand-logo";
 import {
   ArrowRightIcon,
   ArrowUpRightIcon,
   CheckIcon,
   CopyIcon,
+  GitHubIcon,
   HeartIcon,
   ShareIcon,
 } from "@/components/icons";
+import { MobileBottomNav } from "@/components/mobile-bottom-nav";
 import { demoApps, statusLabel, type DemoApp } from "@/lib/mock-data";
+import type { PublicAppNote } from "@/types/app-note";
 
 interface ProfileView {
   username: string;
@@ -21,13 +25,30 @@ interface ProfileView {
   photoURL: string | null;
 }
 
+type NotesByAppId = Record<string, PublicAppNote[]>;
+
+const EMPTY_APP_NOTES: PublicAppNote[] = [];
+const EMPTY_NOTES_BY_APP_ID: NotesByAppId = {};
+
 function PublicAppCard({
   app,
+  cheerCount,
   cheered,
+  cheerPending,
+  notes,
+  viewerUsername,
+  canWriteNotes,
+  showNoteLogin,
   onCheer,
 }: {
   app: DemoApp;
+  cheerCount: number;
   cheered: boolean;
+  cheerPending: boolean;
+  notes: PublicAppNote[];
+  viewerUsername: string | null;
+  canWriteNotes: boolean;
+  showNoteLogin: boolean;
   onCheer: () => void;
 }) {
   const statusTone = `status-${app.status}`;
@@ -54,7 +75,7 @@ function PublicAppCard({
         <div className="public-app-meta">
           <span>{app.clicks}번 열어봤어요</span>
           <span />
-          <span>{app.cheers + (cheered ? 1 : 0)}명이 응원했어요</span>
+          <span>{cheerCount}명이 응원했어요</span>
         </div>
         <div className="public-app-actions">
           {app.url ? (
@@ -81,11 +102,19 @@ function PublicAppCard({
             type="button"
             onClick={onCheer}
             aria-pressed={cheered}
+            disabled={cheerPending}
           >
             <span>{cheered ? "👏" : "♡"}</span>
-            {cheered ? "응원했어요" : "응원해요"}
+            {cheerPending ? "저장 중…" : cheered ? "응원했어요" : "응원해요"}
           </button>
         </div>
+        <AppNotes
+          appId={app.id}
+          initialNotes={notes}
+          viewerUsername={viewerUsername}
+          canWrite={canWriteNotes}
+          showLoginPrompt={showNoteLogin}
+        />
       </div>
     </article>
   );
@@ -101,12 +130,23 @@ const demoProfile: ProfileView = {
 export default function PublicProfilePage({
   profile = demoProfile,
   apps = demoApps,
+  notesByAppId = EMPTY_NOTES_BY_APP_ID,
+  notesEnabled = false,
+  viewerUsername = null,
 }: {
   profile?: ProfileView;
   apps?: DemoApp[];
+  notesByAppId?: NotesByAppId;
+  notesEnabled?: boolean;
+  viewerUsername?: string | null;
 }) {
-  const [cheers, setCheers] = useState<Record<string, boolean>>({});
+  const [cheeredApps, setCheeredApps] = useState<Record<string, boolean>>({});
+  const [cheerCounts, setCheerCounts] = useState<Record<string, number>>(() =>
+    Object.fromEntries(apps.map((app) => [app.id, app.cheers])),
+  );
+  const [pendingCheers, setPendingCheers] = useState<Record<string, boolean>>({});
   const [copied, setCopied] = useState(false);
+  const isOwnProfile = viewerUsername === profile.username;
 
   useEffect(() => {
     let cancelled = false;
@@ -123,7 +163,7 @@ export default function PublicProfilePage({
       }),
     ).then((states) => {
       if (!cancelled) {
-        setCheers((current) => {
+        setCheeredApps((current) => {
           const next = { ...current };
           states.forEach((state) => {
             if (state && !next[state[0]]) next[state[0]] = state[1];
@@ -138,17 +178,43 @@ export default function PublicProfilePage({
   }, [apps]);
 
   async function toggleCheer(appId: string) {
-    if (cheers[appId]) return;
-    setCheers((current) => ({ ...current, [appId]: true }));
+    if (cheeredApps[appId] || pendingCheers[appId]) return;
+    const app = apps.find((candidate) => candidate.id === appId);
+    if (!app) return;
 
-    const response = await fetch(`/api/cheer/${encodeURIComponent(appId)}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: "{}",
-    }).catch(() => null);
+    const previousCount = cheerCounts[appId] ?? app.cheers;
+    setCheeredApps((current) => ({ ...current, [appId]: true }));
+    setCheerCounts((current) => ({
+      ...current,
+      [appId]: previousCount + 1,
+    }));
+    setPendingCheers((current) => ({ ...current, [appId]: true }));
 
-    if (response && !response.ok && response.status !== 503 && response.status !== 404) {
-      setCheers((current) => ({ ...current, [appId]: false }));
+    try {
+      const response = await fetch(`/api/cheer/${encodeURIComponent(appId)}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: "{}",
+      }).catch(() => null);
+      const result = response?.ok
+        ? ((await response.json().catch(() => null)) as {
+            data?: { cheers?: number };
+          } | null)
+        : null;
+      const persistedCount = result?.data?.cheers;
+
+      if (typeof persistedCount !== "number" || !Number.isFinite(persistedCount)) {
+        setCheeredApps((current) => ({ ...current, [appId]: false }));
+        setCheerCounts((current) => ({ ...current, [appId]: previousCount }));
+        return;
+      }
+
+      setCheerCounts((current) => ({
+        ...current,
+        [appId]: Math.max(0, persistedCount),
+      }));
+    } finally {
+      setPendingCheers((current) => ({ ...current, [appId]: false }));
     }
   }
 
@@ -173,10 +239,22 @@ export default function PublicProfilePage({
     <div className="public-page-shell">
       <header className="public-topbar">
         <BrandLogo compact />
-        <button className="button public-share-button" type="button" onClick={shareProfile}>
-          <ShareIcon />
-          공유하기
-        </button>
+        <div className="public-topbar-actions">
+          <a
+            className="public-github-link"
+            href="https://github.com/EtainClub/baby-vibe"
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Baby Vibe GitHub 저장소 열기"
+            title="GitHub"
+          >
+            <GitHubIcon />
+          </a>
+          <button className="button public-share-button" type="button" onClick={shareProfile}>
+            <ShareIcon />
+            공유하기
+          </button>
+        </div>
       </header>
 
       <main className="public-profile-main">
@@ -236,7 +314,13 @@ export default function PublicProfilePage({
             <PublicAppCard
               key={app.id}
               app={app}
-              cheered={Boolean(cheers[app.id])}
+              cheerCount={cheerCounts[app.id] ?? app.cheers}
+              cheered={Boolean(cheeredApps[app.id])}
+              cheerPending={Boolean(pendingCheers[app.id])}
+              notes={notesByAppId[app.id] ?? EMPTY_APP_NOTES}
+              viewerUsername={viewerUsername}
+              canWriteNotes={notesEnabled && Boolean(viewerUsername) && !isOwnProfile}
+              showNoteLogin={notesEnabled && !viewerUsername}
               onCheer={() => toggleCheer(app.id)}
             />
           ))}
@@ -259,6 +343,11 @@ export default function PublicProfilePage({
         <BrandLogo compact />
         <p>바이브 코딩으로 만든 앱들을 모아둔 페이지입니다.</p>
       </footer>
+
+      <MobileBottomNav
+        active={isOwnProfile ? "profile" : "people"}
+        username={viewerUsername}
+      />
 
       <div className={`copy-toast${copied ? " is-visible" : ""}`} role="status">
         <span>

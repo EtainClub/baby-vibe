@@ -33,6 +33,20 @@ export async function getUserProfileByUid(uid: string) {
   return mapUserProfile(snapshot.id, snapshot.data()!);
 }
 
+export async function listPublicProfiles(): Promise<PublicUserProfile[]> {
+  const snapshot = await getAdminDb().collection("users").limit(100).get();
+  return snapshot.docs
+    .map((doc) => mapUserProfile(doc.id, doc.data()))
+    .filter((profile) => profile.username && profile.displayName)
+    .sort((left, right) => right.createdAt.getTime() - left.createdAt.getTime())
+    .map(({ username, displayName, bio, photoURL }) => ({
+      username,
+      displayName,
+      bio,
+      photoURL,
+    }));
+}
+
 export async function getPublicProfileByUsername(
   username: string,
 ): Promise<(PublicUserProfile & { uid: string }) | null> {

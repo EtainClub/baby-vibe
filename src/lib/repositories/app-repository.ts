@@ -221,13 +221,17 @@ export async function deleteApp(uid: string, appId: string) {
     throw new AppError("app_not_found", "앱을 찾을 수 없어요.", 404);
   }
 
-  const cheers = await db.collection("appCheers").where("appId", "==", appId).get();
-  for (let index = 0; index < cheers.docs.length; index += 450) {
-    const cheerBatch = db.batch();
-    cheers.docs
+  const [cheers, notes] = await Promise.all([
+    db.collection("appCheers").where("appId", "==", appId).get(),
+    appRef.collection("notes").get(),
+  ]);
+  const relatedDocs = [...cheers.docs, ...notes.docs];
+  for (let index = 0; index < relatedDocs.length; index += 450) {
+    const relatedBatch = db.batch();
+    relatedDocs
       .slice(index, index + 450)
-      .forEach((doc) => cheerBatch.delete(doc.ref));
-    await cheerBatch.commit();
+      .forEach((doc) => relatedBatch.delete(doc.ref));
+    await relatedBatch.commit();
   }
   const appBatch = db.batch();
   appBatch.delete(appRef);
