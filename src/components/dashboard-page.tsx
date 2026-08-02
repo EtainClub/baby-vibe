@@ -23,7 +23,10 @@ import {
   SparkleIcon,
   UsersIcon,
 } from "@/components/icons";
-import { getFirebaseClientServices } from "@/lib/firebase/client";
+import {
+  getFirebaseClientServices,
+  isFirebaseClientConfigured,
+} from "@/lib/firebase/client";
 import { demoApps, statusLabel } from "@/lib/mock-data";
 import { uploadAppCover } from "@/lib/firebase/upload-image";
 import { useSheetDrag } from "@/lib/ui/use-sheet-drag";
@@ -31,6 +34,7 @@ import { TOOL_LABELS } from "@/lib/utils/tool-labels";
 import type { VibeTool } from "@/types/app";
 
 export default function DashboardPage() {
+  const demoMode = !isFirebaseClientConfigured;
   const [sheetOpen, setSheetOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [shareProfileUrl, setShareProfileUrl] = useState("");
@@ -55,10 +59,10 @@ export default function DashboardPage() {
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
   const [draggedAppId, setDraggedAppId] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState("");
-  const [apps, setApps] = useState(demoApps);
+  const [apps, setApps] = useState(demoMode ? demoApps : []);
   const [profile, setProfile] = useState({
-    username: "etime",
-    displayName: "E-time",
+    username: demoMode ? "etime" : "",
+    displayName: demoMode ? "E-time" : "",
     photoURL: null as string | null,
   });
   const [usingSavedApps, setUsingSavedApps] = useState(false);
@@ -687,13 +691,21 @@ export default function DashboardPage() {
         <div className="dashboard-content">
           <section className="dashboard-welcome">
             <div>
-              <span className="dashboard-date">좋은 오후예요</span>
-              <h1>안녕하세요, {profile.displayName}님.</h1>
+              <span className="dashboard-date">MY WORKSPACE</span>
+              <h1>{profile.displayName}님의 앱</h1>
               <p>
-                지금까지 <strong>{apps.length}개의 앱</strong>을 만들었어요.
+                <strong>{apps.length}개의 앱</strong>을 한곳에서 관리하고 있어요.
               </p>
             </div>
             <div className="dashboard-header-actions">
+              <button
+                className="button button-primary"
+                type="button"
+                onClick={openAddSheet}
+              >
+                <PlusIcon />
+                앱 추가
+              </button>
               <Link className="button button-quiet" href={`/${profile.username}`}>
                 <EyeIcon />
                 내 페이지 보기
@@ -706,93 +718,89 @@ export default function DashboardPage() {
                 <CopyIcon />
                 링크 복사
               </button>
-              <button
-                className="button button-primary"
-                type="button"
-                onClick={openAddSheet}
-              >
-                <PlusIcon />
-                앱 추가
-              </button>
             </div>
           </section>
 
-          <section className="dashboard-milestone">
-            <span className="milestone-emoji">{apps.length >= 3 ? "✨" : "🎉"}</span>
-            <div>
-              <span>{apps.length ? "새로운 성취" : "첫 번째 자리를 준비했어요"}</span>
-              <strong>
-                {apps.length >= 3
-                  ? "벌써 앱이 3개예요!"
-                  : apps.length
-                    ? "첫 앱을 등록했어요"
-                    : "첫 앱 주소를 붙여넣어 보세요"}
-              </strong>
-              <p>
-                {apps.length >= 3
-                  ? "작은 아이디어들이 하나의 컬렉션이 되고 있어요."
-                  : apps.length
-                    ? "이제 당신이 만든 것을 보여줄 수 있어요."
-                    : "나만의 앱 페이지가 바로 완성됩니다."}
-              </p>
+          <div className="dashboard-overview">
+            <section className="dashboard-milestone">
+              <span className="milestone-emoji">{apps.length >= 3 ? "✦" : "↗"}</span>
+              <div>
+                <span>{apps.length ? "COLLECTION" : "GET STARTED"}</span>
+                <strong>
+                  {apps.length >= 3
+                    ? `앱 ${apps.length}개를 모았어요`
+                    : apps.length
+                      ? "첫 앱을 등록했어요"
+                      : "첫 앱을 추가해 보세요"}
+                </strong>
+                <p>
+                  {apps.length >= 3
+                    ? "아이디어가 멋진 컬렉션으로 자라고 있어요."
+                    : apps.length
+                      ? "이제 다른 사람에게 보여줄 준비가 됐어요."
+                      : "링크 하나면 나만의 앱 페이지가 완성돼요."}
+                </p>
+              </div>
+              <span className="milestone-progress">
+                <i
+                  style={{
+                    "--milestone-progress": `${Math.min(apps.length, 3) / 3 * 100}%`,
+                  } as React.CSSProperties}
+                />
+                {Math.min(apps.length, 3)} / 3
+              </span>
+            </section>
+
+            <div className="dashboard-overview-details">
+              <section className="stats-grid" aria-label="내 앱 요약">
+                <article>
+                  <span className="stats-icon stats-icon-blue">
+                    <SparkleIcon />
+                  </span>
+                  <span>
+                    <small>등록한 앱</small>
+                    <strong>{apps.length}<i>개</i></strong>
+                  </span>
+                </article>
+                <article>
+                  <span className="stats-icon stats-icon-mint">
+                    <EyeIcon />
+                  </span>
+                  <span>
+                    <small>앱 열기</small>
+                    <strong>{totals.clicks}<i>회</i></strong>
+                  </span>
+                  {!usingSavedApps && <em>+24</em>}
+                </article>
+                <article>
+                  <span className="stats-icon stats-icon-orange">👏</span>
+                  <span>
+                    <small>받은 응원</small>
+                    <strong>{totals.cheers}<i>개</i></strong>
+                  </span>
+                  {!usingSavedApps && <em>+8</em>}
+                </article>
+              </section>
+
+              <section className="dashboard-achievements" aria-label="나의 작은 성취">
+                {[
+                  ["🎉", "첫 앱", apps.length >= 1],
+                  ["👀", "첫 열기", totals.clicks >= 1],
+                  ["👏", "첫 응원", totals.cheers >= 1],
+                  ["✨", "앱 3개", apps.length >= 3],
+                ].map(([emoji, label, completed]) => (
+                  <article
+                    className={completed ? "is-completed" : ""}
+                    key={String(label)}
+                  >
+                    <span>{String(emoji)}</span>
+                    <strong>{String(label)}</strong>
+                    {completed ? <CheckIcon /> : <i>·</i>}
+                  </article>
+                ))}
+              </section>
             </div>
-            <span className="milestone-progress">
-              <i
-                style={{
-                  "--milestone-progress": `${Math.min(apps.length, 3) / 3 * 100}%`,
-                } as React.CSSProperties}
-              />
-              {Math.min(apps.length, 3)} / 3
-            </span>
-          </section>
-
-          <section className="dashboard-achievements" aria-label="나의 작은 성취">
-            {[
-              ["🎉", "첫 앱 등록", apps.length >= 1],
-              ["👀", "첫 앱 열기", totals.clicks >= 1],
-              ["👏", "첫 응원", totals.cheers >= 1],
-              ["✨", "앱 3개 등록", apps.length >= 3],
-            ].map(([emoji, label, completed]) => (
-              <article
-                className={completed ? "is-completed" : ""}
-                key={String(label)}
-              >
-                <span>{String(emoji)}</span>
-                <strong>{String(label)}</strong>
-                {completed ? <CheckIcon /> : <i>아직</i>}
-              </article>
-            ))}
-          </section>
-
-          <section className="stats-grid" aria-label="내 앱 요약">
-            <article>
-              <span className="stats-icon stats-icon-blue">
-                <SparkleIcon />
-              </span>
-              <span>
-                <small>등록한 앱</small>
-                <strong>{apps.length}<i>개</i></strong>
-              </span>
-            </article>
-            <article>
-              <span className="stats-icon stats-icon-mint">
-                <EyeIcon />
-              </span>
-              <span>
-                <small>앱 열기</small>
-                <strong>{totals.clicks}<i>회</i></strong>
-              </span>
-              {!usingSavedApps && <em>이번 주 +24</em>}
-            </article>
-            <article>
-              <span className="stats-icon stats-icon-orange">👏</span>
-              <span>
-                <small>받은 응원</small>
-                <strong>{totals.cheers}<i>개</i></strong>
-              </span>
-              {!usingSavedApps && <em>이번 주 +8</em>}
-            </article>
-          </section>
+          </div>
 
           <section className="dashboard-apps-section">
             <div className="dashboard-section-heading">

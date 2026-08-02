@@ -24,6 +24,13 @@ import { onAuthStateChanged } from "firebase/auth";
 
 type Step = "profile" | "app" | "done";
 
+interface InitialProfile {
+  username: string;
+  displayName: string;
+  bio: string;
+  photoURL: string | null;
+}
+
 const tools = [
   ["codex", "❯", "Codex"],
   ["claude-code", "✦", "Claude Code"],
@@ -37,13 +44,22 @@ const tools = [
   ["other", "＋", "기타"],
 ];
 
-export default function OnboardingPage() {
+export default function OnboardingPage({
+  initialProfile = null,
+}: {
+  initialProfile?: InitialProfile | null;
+}) {
   const demoMode = !isFirebaseClientConfigured;
-  const [step, setStep] = useState<Step>("profile");
-  const [displayName, setDisplayName] = useState(demoMode ? "E-time" : "");
-  const [username, setUsername] = useState(demoMode ? "etime" : "");
+  const [step, setStep] = useState<Step>(initialProfile ? "app" : "profile");
+  const [displayName, setDisplayName] = useState(
+    initialProfile?.displayName ?? (demoMode ? "E-time" : ""),
+  );
+  const [username, setUsername] = useState(
+    initialProfile?.username ?? (demoMode ? "etime" : ""),
+  );
   const [bio, setBio] = useState(
-    demoMode ? "생활 속 아이디어를 작은 앱으로 만들고 있어요." : "",
+    initialProfile?.bio ??
+      (demoMode ? "생활 속 아이디어를 작은 앱으로 만들고 있어요." : ""),
   );
   const [usernameState, setUsernameState] = useState<
     "available" | "checking" | "invalid" | "taken"
@@ -63,20 +79,23 @@ export default function OnboardingPage() {
   const [appFaviconURL, setAppFaviconURL] = useState<string | null>(null);
   const [appCoverFile, setAppCoverFile] = useState<File | null>(null);
   const [appCoverPreview, setAppCoverPreview] = useState<string | null>(null);
-  const [profileSaved, setProfileSaved] = useState(false);
+  const [profileSaved, setProfileSaved] = useState(Boolean(initialProfile));
   const [pending, setPending] = useState(false);
   const [formError, setFormError] = useState("");
   const [copied, setCopied] = useState(false);
   const [inspectMessage, setInspectMessage] = useState(
     demoMode ? "앱 정보를 찾았어요" : "주소를 넣고 정보를 가져와 주세요",
   );
-  const [photoURL, setPhotoURL] = useState<string | null>(null);
+  const [photoURL, setPhotoURL] = useState<string | null>(
+    initialProfile?.photoURL ?? null,
+  );
   const avatarInput = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const services = getFirebaseClientServices();
     if (!services) return;
     return onAuthStateChanged(services.auth, (user) => {
+      if (initialProfile) return;
       if (user?.photoURL) setPhotoURL(user.photoURL);
       if (user?.displayName) setDisplayName(user.displayName);
       const suggestedUsername = (user?.email?.split("@")[0] ?? "")
@@ -89,7 +108,7 @@ export default function OnboardingPage() {
         setUsernameState("available");
       }
     });
-  }, []);
+  }, [initialProfile]);
 
   async function handleAvatar(file?: File) {
     if (!file) return;
@@ -150,10 +169,10 @@ export default function OnboardingPage() {
 
     try {
       const response = await fetch("/api/profile", {
-        method: "POST",
+        method: profileSaved ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          username,
+          ...(!profileSaved ? { username } : {}),
           displayName: formData.get("displayName"),
           bio: formData.get("bio"),
           photoURL,
@@ -163,7 +182,7 @@ export default function OnboardingPage() {
         error?: { code?: string; message?: string };
       };
 
-      if (response.ok || result.error?.code === "profile_exists") {
+      if (response.ok) {
         setProfileSaved(true);
         setStep("app");
       } else if ([401, 503].includes(response.status)) {
@@ -475,6 +494,7 @@ export default function OnboardingPage() {
                     onBlur={() => void checkUsername()}
                     minLength={3}
                     maxLength={24}
+                    disabled={profileSaved}
                     required
                   />
                   {usernameState === "available" && <CheckIcon />}
@@ -488,7 +508,10 @@ export default function OnboardingPage() {
                         : "field-error"
                   }
                 >
-                  {usernameState === "available" && "사용할 수 있는 사용자명이에요"}
+                  {usernameState === "available" &&
+                    (profileSaved
+                      ? "이미 정한 사용자명이에요"
+                      : "사용할 수 있는 사용자명이에요")}
                   {usernameState === "checking" && "사용 가능 여부를 확인하고 있어요…"}
                   {usernameState === "invalid" &&
                     "영문 소문자, 숫자, 하이픈으로 3~24자를 입력해 주세요"}

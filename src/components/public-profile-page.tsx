@@ -157,16 +157,26 @@ export default function PublicProfilePage({
         }).catch(() => null);
         if (!response?.ok) return null;
         const result = (await response.json()) as {
-          data?: { cheered?: boolean };
+          data?: { cheered?: boolean; cheers?: number };
         };
-        return [app.id, Boolean(result.data?.cheered)] as const;
+        return [app.id, result.data] as const;
       }),
     ).then((states) => {
       if (!cancelled) {
         setCheeredApps((current) => {
           const next = { ...current };
           states.forEach((state) => {
-            if (state && !next[state[0]]) next[state[0]] = state[1];
+            if (state) next[state[0]] = Boolean(state[1]?.cheered);
+          });
+          return next;
+        });
+        setCheerCounts((current) => {
+          const next = { ...current };
+          states.forEach((state) => {
+            const cheers = state?.[1]?.cheers;
+            if (state && typeof cheers === "number" && Number.isFinite(cheers)) {
+              next[state[0]] = Math.max(0, cheers);
+            }
           });
           return next;
         });

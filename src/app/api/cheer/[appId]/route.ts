@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { assertSameOrigin, jsonError } from "@/lib/api/response";
 import {
   cheerApp,
-  hasCheeredApp,
+  getAppCheerState,
 } from "@/lib/repositories/stats-repository";
 
 const VISITOR_COOKIE = "moa_visitor";
@@ -26,13 +26,10 @@ export async function GET(
 ) {
   try {
     const visitorId = getVisitorId(request);
-    if (!visitorId) {
-      return Response.json({ ok: true, data: { cheered: false } });
-    }
     const { appId } = await context.params;
     return Response.json({
       ok: true,
-      data: { cheered: await hasCheeredApp(appId, visitorId) },
+      data: await getAppCheerState(appId, visitorId),
     });
   } catch (error) {
     return jsonError(error);

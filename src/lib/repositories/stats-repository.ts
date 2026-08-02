@@ -5,6 +5,10 @@ import { FieldValue } from "firebase-admin/firestore";
 import { AppError } from "@/lib/errors";
 import { getAdminDb } from "@/lib/firebase/admin";
 
+function getReactionHash(appId: string, visitorId: string) {
+  return createHash("sha256").update(`${appId}:${visitorId}`).digest("hex");
+}
+
 export async function recordOutboundClick(appId: string) {
   const db = getAdminDb();
   const appRef = db.collection("apps").doc(appId);
@@ -51,9 +55,7 @@ export async function recordOutboundClick(appId: string) {
 export async function cheerApp(appId: string, visitorId: string) {
   const db = getAdminDb();
   const visitorHash = createHash("sha256").update(visitorId).digest("hex");
-  const reactionHash = createHash("sha256")
-    .update(`${appId}:${visitorId}`)
-    .digest("hex");
+  const reactionHash = getReactionHash(appId, visitorId);
   const cheerRef = db.collection("appCheers").doc(reactionHash);
   const appRef = db.collection("apps").doc(appId);
   const statsRef = db.collection("appStats").doc(appId);
@@ -107,11 +109,19 @@ export async function cheerApp(appId: string, visitorId: string) {
   });
 }
 
-export async function hasCheeredApp(appId: string, visitorId: string) {
-  const reactionHash = createHash("sha256")
-    .update(`${appId}:${visitorId}`)
-    .digest("hex");
-  return (
-    await getAdminDb().collection("appCheers").doc(reactionHash).get()
-  ).exists;
+export async function getAppCheerState(appId: string, visitorId: string | null) {
+  const db = getAdminDb();
+  const statsRef = db.collection("appStats").doc(appId);
+
+  if (!visitorId) {
+    const stats = await statsRef.get();
+    return { cheered: false, cheers: Number(stats.get("cheers") ?? 0) };
+  }
+
+  const cheerRef = db.collection("appCheers").doc(getReactionHash(appId, visitorId));
+  const [stats, cheer] = await db.getAll(statsRef, cheerRef);
+  return {
+    cheered: cheer.exists,
+    cheers: Number(stats.get("cheers") ?? 0),
+  };
 }
