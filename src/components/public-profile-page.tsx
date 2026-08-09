@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AppCover } from "@/components/app-cover";
 import { AppNotes } from "@/components/app-notes";
 import { BrandLogo } from "@/components/brand-logo";
@@ -145,6 +145,7 @@ export default function PublicProfilePage({
     Object.fromEntries(apps.map((app) => [app.id, app.cheers])),
   );
   const [pendingCheers, setPendingCheers] = useState<Record<string, boolean>>({});
+  const cheerInteractions = useRef(new Set<string>());
   const [copied, setCopied] = useState(false);
   const isOwnProfile = viewerUsername === profile.username;
 
@@ -166,16 +167,24 @@ export default function PublicProfilePage({
         setCheeredApps((current) => {
           const next = { ...current };
           states.forEach((state) => {
-            if (state) next[state[0]] = Boolean(state[1]?.cheered);
+            if (state && !cheerInteractions.current.has(state[0])) {
+              next[state[0]] = Boolean(state[1]?.cheered);
+            }
           });
           return next;
         });
         setCheerCounts((current) => {
           const next = { ...current };
           states.forEach((state) => {
+            const appId = state?.[0];
             const cheers = state?.[1]?.cheers;
-            if (state && typeof cheers === "number" && Number.isFinite(cheers)) {
-              next[state[0]] = Math.max(0, cheers);
+            if (
+              appId &&
+              !cheerInteractions.current.has(appId) &&
+              typeof cheers === "number" &&
+              Number.isFinite(cheers)
+            ) {
+              next[appId] = Math.max(0, cheers);
             }
           });
           return next;
@@ -191,6 +200,7 @@ export default function PublicProfilePage({
     if (cheeredApps[appId] || pendingCheers[appId]) return;
     const app = apps.find((candidate) => candidate.id === appId);
     if (!app) return;
+    cheerInteractions.current.add(appId);
 
     const previousCount = cheerCounts[appId] ?? app.cheers;
     setCheeredApps((current) => ({ ...current, [appId]: true }));
@@ -208,16 +218,21 @@ export default function PublicProfilePage({
       }).catch(() => null);
       const result = response?.ok
         ? ((await response.json().catch(() => null)) as {
-            data?: { cheers?: number };
+            data?: { cheered?: boolean; cheers?: number };
           } | null)
         : null;
       const persistedCount = result?.data?.cheers;
 
-      if (typeof persistedCount !== "number" || !Number.isFinite(persistedCount)) {
+      if (
+        result?.data?.cheered !== true ||
+        typeof persistedCount !== "number" ||
+        !Number.isFinite(persistedCount)
+      ) {
         setCheeredApps((current) => ({ ...current, [appId]: false }));
         setCheerCounts((current) => ({ ...current, [appId]: previousCount }));
         return;
       }
+      setCheeredApps((current) => ({ ...current, [appId]: true }));
 
       setCheerCounts((current) => ({
         ...current,

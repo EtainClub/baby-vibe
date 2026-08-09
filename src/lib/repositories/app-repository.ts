@@ -11,7 +11,8 @@ import type {
 } from "@/types/app";
 import type { AppStats } from "@/types/stats";
 
-const MAX_APPS_PER_USER = 20;
+const MAX_APPS_WITHOUT_GOOGLE = 5;
+const MAX_APPS_WITH_GOOGLE = 50;
 
 function toDate(value: unknown) {
   return value instanceof Timestamp ? value.toDate() : new Date(0);
@@ -109,11 +110,16 @@ export async function listPublicAppsForOwner(uid: string): Promise<PublicVibeApp
   }));
 }
 
-export async function createApp(uid: string, input: CreateAppInput) {
+export async function createApp(
+  uid: string,
+  input: CreateAppInput,
+  googleLinked: boolean,
+) {
   const db = getAdminDb();
   const appRef = db.collection("apps").doc();
   const statsRef = db.collection("appStats").doc(appRef.id);
   const userRef = db.collection("users").doc(uid);
+  const maxApps = googleLinked ? MAX_APPS_WITH_GOOGLE : MAX_APPS_WITHOUT_GOOGLE;
 
   await db.runTransaction(async (transaction) => {
     const [profile, existingApps] = await Promise.all([
@@ -124,10 +130,10 @@ export async function createApp(uid: string, input: CreateAppInput) {
     if (!profile.exists) {
       throw new AppError("profile_not_found", "프로필을 먼저 만들어 주세요.", 404);
     }
-    if (existingApps.size >= MAX_APPS_PER_USER) {
+    if (existingApps.size >= maxApps) {
       throw new AppError(
         "app_limit_reached",
-        `첫 버전에서는 앱을 ${MAX_APPS_PER_USER}개까지 등록할 수 있어요.`,
+        `Google 계정 ${googleLinked ? "연동 계정" : "미연동 계정"}은 앱을 최대 ${maxApps}개까지 등록할 수 있어요.`,
         409,
       );
     }

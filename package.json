@@ -1,13 +1,13 @@
 {
   "name": "baby-vibehub",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build --webpack",
     "start": "next start",
     "lint": "eslint",
-    "deploy": "IS_WEBPACK_TEST=1 NEXT_PUBLIC_APP_URL=https://baby-vibe.web.app firebase deploy --only hosting,storage,firestore"
+    "deploy": "IS_WEBPACK_TEST=1 NEXT_PUBLIC_APP_URL=https://baby.etain.club firebase deploy --only hosting,storage,firestore"
   },
   "dependencies": {
     "firebase": "^12.16.0",

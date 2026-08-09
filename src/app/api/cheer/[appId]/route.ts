@@ -50,7 +50,10 @@ export async function POST(
         : randomUUID();
 
     const result = await cheerApp(appId, visitorId);
-    const response = NextResponse.json({ ok: true, data: result });
+    const response = NextResponse.json({
+      ok: true,
+      data: { ...result, cheered: true },
+    });
     if (!existingVisitor) {
       response.cookies.set(VISITOR_COOKIE, visitorId, {
         httpOnly: true,

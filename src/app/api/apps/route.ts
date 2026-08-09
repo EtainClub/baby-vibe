@@ -21,7 +21,7 @@ export async function POST(request: Request) {
     assertSameOrigin(request);
     const user = await requireSessionUser();
     const input = validateCreateAppInput(await readJson(request));
-    const app = await createApp(user.uid, input);
+    const app = await createApp(user.uid, input, user.googleLinked);
     return Response.json({ ok: true, data: app }, { status: 201 });
   } catch (error) {
     return jsonError(error);

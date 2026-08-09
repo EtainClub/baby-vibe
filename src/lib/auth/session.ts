@@ -12,6 +12,7 @@ export interface SessionUser {
   email: string | null;
   name: string | null;
   picture: string | null;
+  googleLinked: boolean;
 }
 
 export async function getSessionUser(): Promise<SessionUser | null> {
@@ -26,6 +27,9 @@ export async function getSessionUser(): Promise<SessionUser | null> {
       email: typeof decoded.email === "string" ? decoded.email : null,
       name: typeof decoded.name === "string" ? decoded.name : null,
       picture: typeof decoded.picture === "string" ? decoded.picture : null,
+      googleLinked:
+        decoded.firebase?.sign_in_provider === "google.com" ||
+        Boolean(decoded.firebase?.identities?.["google.com"]?.length),
     };
   } catch {
     return null;

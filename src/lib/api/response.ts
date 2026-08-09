@@ -43,21 +43,36 @@ export function assertSameOrigin(request: Request) {
   const origin = request.headers.get("origin");
   if (!origin) return;
 
-  const forwardedHost = request.headers.get("x-forwarded-host")?.split(",")[0]?.trim();
+  let requestOrigin: string;
+  try {
+    requestOrigin = new URL(origin).origin;
+  } catch {
+    throw new AppError("invalid_origin", "허용되지 않은 요청이에요.", 403);
+  }
+
+  const forwardedHost = (
+    request.headers.get("x-fh-requested-host") ||
+    request.headers.get("x-forwarded-host")
+  )
+    ?.split(",")[0]
+    ?.trim();
   const host = forwardedHost || request.headers.get("host");
   const forwardedProtocol = request.headers
     .get("x-forwarded-proto")
     ?.split(",")[0]
     ?.trim();
-  const requestProtocol = new URL(request.url).protocol.replace(":", "");
-  const inferredOrigin = host
-    ? `${forwardedProtocol || requestProtocol}://${host}`
-    : new URL(request.url).origin;
-  const allowedOrigin = process.env.NEXT_PUBLIC_APP_URL
-    ? new URL(process.env.NEXT_PUBLIC_APP_URL).origin
-    : new URL(inferredOrigin).origin;
+  const requestUrl = new URL(request.url);
+  const currentOrigin = host
+    ? new URL(`${forwardedProtocol || requestUrl.protocol.replace(":", "")}://${host}`)
+        .origin
+    : requestUrl.origin;
+  const allowedOrigins = new Set([currentOrigin]);
 
-  if (new URL(origin).origin !== allowedOrigin) {
+  if (process.env.NEXT_PUBLIC_APP_URL) {
+    allowedOrigins.add(new URL(process.env.NEXT_PUBLIC_APP_URL).origin);
+  }
+
+  if (!allowedOrigins.has(requestOrigin)) {
     throw new AppError("invalid_origin", "허용되지 않은 요청이에요.", 403);
   }
 }
