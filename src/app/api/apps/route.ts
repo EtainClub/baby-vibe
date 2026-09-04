@@ -4,6 +4,7 @@ import {
   createApp,
   listAppsForOwner,
 } from "@/lib/repositories/app-repository";
+import { hasRecoveryKey } from "@/lib/repositories/recovery-repository";
 import { validateCreateAppInput } from "@/lib/validation/app";
 
 export async function GET() {
@@ -21,7 +22,9 @@ export async function POST(request: Request) {
     assertSameOrigin(request);
     const user = await requireSessionUser();
     const input = validateCreateAppInput(await readJson(request));
-    const app = await createApp(user.uid, input, user.googleLinked);
+    const recoverable =
+      user.googleLinked || (await hasRecoveryKey(user.uid));
+    const app = await createApp(user.uid, input, recoverable);
     return Response.json({ ok: true, data: app }, { status: 201 });
   } catch (error) {
     return jsonError(error);

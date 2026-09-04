@@ -23,26 +23,54 @@ function mapPublicNote(id: string, data: Record<string, unknown>): PublicAppNote
   };
 }
 
+// Firestore caps an `in` filter at 30 values.
+const MAX_IN_FILTER_VALUES = 30;
+
+/**
+ * Notes for a whole profile.
+ *
+ * This used to issue one subcollection query per app, so a maker with 50 apps
+ * cost 50 Firestore round trips to render one page. A collection-group query
+ * over `notes` does it in ceil(apps / 30).
+ */
 export async function listPublicAppNotes(appIds: string[]) {
+  if (!appIds.length) return {} as Record<string, PublicAppNote[]>;
+
   const db = getAdminDb();
+  const chunks: string[][] = [];
+  for (let index = 0; index < appIds.length; index += MAX_IN_FILTER_VALUES) {
+    chunks.push(appIds.slice(index, index + MAX_IN_FILTER_VALUES));
+  }
+
   const snapshots = await Promise.all(
-    appIds.map((appId) =>
+    chunks.map((chunk) =>
       db
-        .collection("apps")
-        .doc(appId)
-        .collection("notes")
+        .collectionGroup("notes")
+        .where("appId", "in", chunk)
         .orderBy("createdAt", "desc")
-        .limit(MAX_PUBLIC_NOTES_PER_APP)
+        .limit(MAX_PUBLIC_NOTES_PER_APP * chunk.length)
         .get(),
     ),
   );
 
-  return Object.fromEntries(
-    snapshots.map((snapshot, index) => [
-      appIds[index],
-      snapshot.docs.map((doc) => mapPublicNote(doc.id, doc.data())),
-    ]),
+  const notesByAppId = Object.fromEntries(
+    appIds.map((appId) => [appId, [] as PublicAppNote[]]),
   ) as Record<string, PublicAppNote[]>;
+
+  for (const snapshot of snapshots) {
+    for (const doc of snapshot.docs) {
+      const appId = String(doc.get("appId") ?? "");
+      const notes = notesByAppId[appId];
+      // The per-app cap has to be applied here: the query limit is shared
+      // across the whole chunk, so one loud app could otherwise crowd out
+      // every other app in it.
+      if (notes && notes.length < MAX_PUBLIC_NOTES_PER_APP) {
+        notes.push(mapPublicNote(doc.id, doc.data()));
+      }
+    }
+  }
+
+  return notesByAppId;
 }
 
 export async function createAppNote(

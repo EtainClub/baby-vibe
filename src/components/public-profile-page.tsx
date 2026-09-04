@@ -6,6 +6,7 @@ import { AppCover } from "@/components/app-cover";
 import { AppNotes } from "@/components/app-notes";
 import { BrandLogo } from "@/components/brand-logo";
 import {
+  AlertIcon,
   ArrowRightIcon,
   ArrowUpRightIcon,
   CheckIcon,
@@ -16,7 +17,11 @@ import {
 } from "@/components/icons";
 import { MobileBottomNav } from "@/components/mobile-bottom-nav";
 import { demoApps, statusLabel, type DemoApp } from "@/lib/mock-data";
+import { IS_TOSS_APP } from "@/lib/platform";
+import { outboundHref, publicProfileUrl } from "@/lib/routes";
+import { copyText, openExternalUrl, shareMessage } from "@/lib/toss/bridge";
 import type { PublicAppNote } from "@/types/app-note";
+import { apiFetch } from "@/lib/api/client";
 
 interface ProfileView {
   username: string;
@@ -29,6 +34,40 @@ type NotesByAppId = Record<string, PublicAppNote[]>;
 
 const EMPTY_APP_NOTES: PublicAppNote[] = [];
 const EMPTY_NOTES_BY_APP_ID: NotesByAppId = {};
+
+const CHEERED_APPS_STORAGE_KEY = "baby-vibe:cheered-apps";
+
+function readStoredCheeredApps() {
+  try {
+    const value: unknown = JSON.parse(
+      window.localStorage.getItem(CHEERED_APPS_STORAGE_KEY) ?? "[]",
+    );
+    return new Set(
+      Array.isArray(value)
+        ? value.filter((appId): appId is string => typeof appId === "string")
+        : [],
+    );
+  } catch {
+    return new Set<string>();
+  }
+}
+
+function writeStoredCheeredApps(appIds: Set<string>) {
+  try {
+    window.localStorage.setItem(
+      CHEERED_APPS_STORAGE_KEY,
+      JSON.stringify([...appIds].slice(-1000)),
+    );
+  } catch {
+    // Cookie-based state still works when browser storage is unavailable.
+  }
+}
+
+function rememberCheeredApp(appId: string) {
+  const appIds = readStoredCheeredApps();
+  appIds.add(appId);
+  writeStoredCheeredApps(appIds);
+}
 
 function PublicAppCard({
   app,
@@ -69,6 +108,12 @@ function PublicAppCard({
             <i />
             {statusLabel[app.status]}
           </span>
+          {app.health === "unreachable" && (
+            <span className="app-health-warning">
+              <AlertIcon />
+              지금은 열리지 않아요
+            </span>
+          )}
         </div>
         <h2>{app.name}</h2>
         <p>{app.description}</p>
@@ -82,10 +127,18 @@ function PublicAppCard({
             <a
               className="button button-dark public-open-button"
               href={
-                app.url?.startsWith("/") ? app.url : `/go/${app.id}`
+                app.url?.startsWith("/") ? app.url : outboundHref(app.id)
               }
               target="_blank"
               rel="noreferrer"
+              onClick={(event) => {
+                // `target="_blank"` does nothing inside the Toss webview, so
+                // the bridge opens the tracking redirect in the system
+                // browser — the click still gets counted on the way through.
+                if (!IS_TOSS_APP || app.url?.startsWith("/")) return;
+                event.preventDefault();
+                void openExternalUrl(outboundHref(app.id));
+              }}
             >
               {app.status === "paused" ? "그래도 구경하기" : "앱 열기"}
               <ArrowUpRightIcon />
@@ -150,46 +203,56 @@ export default function PublicProfilePage({
   const isOwnProfile = viewerUsername === profile.username;
 
   useEffect(() => {
+    if (!apps.length) return;
     let cancelled = false;
-    void Promise.all(
-      apps.map(async (app) => {
-        const response = await fetch(`/api/cheer/${encodeURIComponent(app.id)}`, {
-          cache: "no-store",
-        }).catch(() => null);
-        if (!response?.ok) return null;
-        const result = (await response.json()) as {
-          data?: { cheered?: boolean; cheers?: number };
-        };
-        return [app.id, result.data] as const;
-      }),
-    ).then((states) => {
-      if (!cancelled) {
-        setCheeredApps((current) => {
-          const next = { ...current };
-          states.forEach((state) => {
-            if (state && !cheerInteractions.current.has(state[0])) {
-              next[state[0]] = Boolean(state[1]?.cheered);
-            }
-          });
-          return next;
+    const storedCheeredApps = readStoredCheeredApps();
+
+    // One request for the whole profile — this used to be one per app, so a
+    // maker with twenty apps meant twenty round trips before anything settled.
+    void (async () => {
+      const response = await apiFetch(
+        `/api/cheer?appIds=${apps.map((app) => encodeURIComponent(app.id)).join(",")}`,
+        { cache: "no-store" },
+      ).catch(() => null);
+      const result = response?.ok
+        ? ((await response.json().catch(() => null)) as {
+            data?: Record<string, { cheered?: boolean; cheers?: number }>;
+          } | null)
+        : null;
+      return apps.map(
+        (app) => [app.id, result?.data?.[app.id] ?? null] as const,
+      );
+    })().then((states) => {
+      if (cancelled) return;
+
+      states.forEach(([appId, state]) => {
+        if (state?.cheered) storedCheeredApps.add(appId);
+      });
+      writeStoredCheeredApps(storedCheeredApps);
+
+      setCheeredApps((current) => {
+        const next = { ...current };
+        states.forEach(([appId, state]) => {
+          if (!cheerInteractions.current.has(appId)) {
+            next[appId] = Boolean(state?.cheered) || storedCheeredApps.has(appId);
+          }
         });
-        setCheerCounts((current) => {
-          const next = { ...current };
-          states.forEach((state) => {
-            const appId = state?.[0];
-            const cheers = state?.[1]?.cheers;
-            if (
-              appId &&
-              !cheerInteractions.current.has(appId) &&
-              typeof cheers === "number" &&
-              Number.isFinite(cheers)
-            ) {
-              next[appId] = Math.max(0, cheers);
-            }
-          });
-          return next;
+        return next;
+      });
+      setCheerCounts((current) => {
+        const next = { ...current };
+        states.forEach(([appId, state]) => {
+          const cheers = state?.cheers;
+          if (
+            !cheerInteractions.current.has(appId) &&
+            typeof cheers === "number" &&
+            Number.isFinite(cheers)
+          ) {
+            next[appId] = Math.max(0, cheers);
+          }
         });
-      }
+        return next;
+      });
     });
     return () => {
       cancelled = true;
@@ -211,7 +274,7 @@ export default function PublicProfilePage({
     setPendingCheers((current) => ({ ...current, [appId]: true }));
 
     try {
-      const response = await fetch(`/api/cheer/${encodeURIComponent(appId)}`, {
+      const response = await apiFetch(`/api/cheer/${encodeURIComponent(appId)}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: "{}",
@@ -233,6 +296,7 @@ export default function PublicProfilePage({
         return;
       }
       setCheeredApps((current) => ({ ...current, [appId]: true }));
+      rememberCheeredApp(appId);
 
       setCheerCounts((current) => ({
         ...current,
@@ -244,18 +308,16 @@ export default function PublicProfilePage({
   }
 
   async function shareProfile() {
-    const shareData = {
-      title: `${profile.displayName}님의 앱들`,
+    // Always share the canonical web URL: inside Toss `location.href` is the
+    // bundle's own `/u?u=…` address, which means nothing outside the app.
+    const url = publicProfileUrl(profile.username);
+    const shared = await shareMessage({
       text: `${profile.displayName}님이 만든 앱들을 한곳에 모아봤어요.`,
-      url: window.location.href,
-    };
+      url,
+    });
+    if (shared) return;
 
-    if (navigator.share) {
-      await navigator.share(shareData).catch(() => undefined);
-      return;
-    }
-
-    await navigator.clipboard?.writeText(window.location.href);
+    await copyText(url);
     setCopied(true);
     window.setTimeout(() => setCopied(false), 2200);
   }

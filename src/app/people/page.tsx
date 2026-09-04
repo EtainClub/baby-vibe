@@ -1,8 +1,11 @@
 import type { Metadata } from "next";
+import PeopleClient from "@/components/people-client";
 import PeoplePage from "@/components/people-page";
 import { getSessionUser } from "@/lib/auth/session";
 import { demoCreators } from "@/lib/demo-creators";
 import { isFirebaseAdminConfigured } from "@/lib/firebase/admin";
+import { IS_TOSS_APP } from "@/lib/platform";
+import { listRecentPublicApps } from "@/lib/repositories/app-repository";
 import {
   getUserProfileByUid,
   listPublicProfiles,
@@ -14,6 +17,8 @@ export const metadata: Metadata = {
 };
 
 export default async function PeopleRoute() {
+  if (IS_TOSS_APP) return <PeopleClient />;
+
   if (!isFirebaseAdminConfigured()) {
     return (
       <PeoplePage
@@ -23,13 +28,19 @@ export default async function PeopleRoute() {
     );
   }
 
-  const [people, user] = await Promise.all([
+  const [page, recentApps, user] = await Promise.all([
     listPublicProfiles(),
+    listRecentPublicApps(),
     getSessionUser(),
   ]);
   const viewerProfile = user ? await getUserProfileByUid(user.uid) : null;
 
   return (
-    <PeoplePage people={people} viewerUsername={viewerProfile?.username ?? null} />
+    <PeoplePage
+      people={page.people}
+      nextCursor={page.nextCursor}
+      recentApps={recentApps}
+      viewerUsername={viewerProfile?.username ?? null}
+    />
   );
 }

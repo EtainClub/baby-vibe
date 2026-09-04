@@ -5,8 +5,19 @@ import { FormEvent, useEffect, useState } from "react";
 import { BrandLogo } from "@/components/brand-logo";
 import { CheckIcon, ChevronLeftIcon } from "@/components/icons";
 import { LogoutButton } from "@/components/auth/logout-button";
+import {
+  RecoveryKeyIssuer,
+  RecoveryKeyRedeemer,
+} from "@/components/auth/recovery-key-dialog";
 import { MobileBottomNav } from "@/components/mobile-bottom-nav";
+import {
+  LoadError,
+  Skeleton,
+  useLoadStatus,
+} from "@/components/ui/load-state";
 import { uploadProfileImage } from "@/lib/firebase/upload-image";
+import { IS_TOSS_APP, PUBLIC_APP_HOST } from "@/lib/platform";
+import { apiFetch } from "@/lib/api/client";
 
 interface EditableProfile {
   username: string;
@@ -27,20 +38,45 @@ export default function SettingsPage({ appVersion }: { appVersion: string }) {
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState("");
   const [isError, setIsError] = useState(false);
+  const [hasRecoveryKey, setHasRecoveryKey] = useState(false);
+  const [reloadToken, setReloadToken] = useState(0);
+  const [loadStatus, setLoadStatus] = useLoadStatus(reloadToken);
 
   useEffect(() => {
     let cancelled = false;
-    void fetch("/api/profile", { cache: "no-store" })
+
+    void apiFetch("/api/profile", { cache: "no-store" })
+      .then(async (response) => {
+        if (cancelled) return;
+        // 401/503 means the demo fallback profile is the right thing to show;
+        // anything else is a genuine failure the user should see.
+        if (!response.ok) {
+          setLoadStatus([401, 503].includes(response.status) ? "ready" : "error");
+          return;
+        }
+        const result = (await response.json()) as { data?: EditableProfile };
+        if (cancelled) return;
+        if (result.data) setProfile(result.data);
+        setLoadStatus("ready");
+      })
+      .catch(() => {
+        if (!cancelled) setLoadStatus("error");
+      });
+
+    void apiFetch("/api/auth/recovery", { cache: "no-store" })
       .then(async (response) => {
         if (!response.ok) return;
-        const result = (await response.json()) as { data?: EditableProfile };
-        if (result.data && !cancelled) setProfile(result.data);
+        const result = (await response.json()) as {
+          data?: { hasRecoveryKey?: boolean };
+        };
+        if (!cancelled) setHasRecoveryKey(Boolean(result.data?.hasRecoveryKey));
       })
       .catch(() => undefined);
+
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [reloadToken, setLoadStatus]);
 
   async function saveProfile(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -49,7 +85,7 @@ export default function SettingsPage({ appVersion }: { appVersion: string }) {
     setIsError(false);
 
     try {
-      const response = await fetch("/api/profile", {
+      const response = await apiFetch("/api/profile", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -125,7 +161,26 @@ export default function SettingsPage({ appVersion }: { appVersion: string }) {
             <h2>프로필 정보</h2>
             <p>이 정보는 누구나 볼 수 있는 내 앱 페이지에 표시됩니다.</p>
           </div>
-          <form className="settings-form" onSubmit={saveProfile}>
+          {loadStatus === "loading" && (
+            <div className="settings-skeleton">
+              <Skeleton className="skeleton-stat" />
+              <Skeleton className="skeleton-line" count={4} />
+            </div>
+          )}
+
+          {loadStatus === "error" && (
+            <LoadError
+              title="프로필을 불러오지 못했어요"
+              description="지금 저장하면 예전 정보를 덮어쓸 수 있어요. 먼저 다시 불러와 주세요."
+              onRetry={() => setReloadToken((token) => token + 1)}
+            />
+          )}
+
+          <form
+            className="settings-form"
+            onSubmit={saveProfile}
+            hidden={loadStatus !== "ready"}
+          >
             <div className="settings-avatar-row">
               <div
                 className="settings-avatar"
@@ -176,7 +231,7 @@ export default function SettingsPage({ appVersion }: { appVersion: string }) {
             <label className="field-group">
               <span>사용자명</span>
               <div className="settings-username">
-                <i>baby-vibe.web.app/</i>
+                <i>{PUBLIC_APP_HOST}/</i>
                 <input value={profile.username} disabled />
               </div>
               <small>첫 버전에서는 사용자명을 변경할 수 없어요.</small>
@@ -196,7 +251,10 @@ export default function SettingsPage({ appVersion }: { appVersion: string }) {
             </label>
 
             {message && (
-              <p className={isError ? "settings-message is-error" : "settings-message"}>
+              <p
+                className={isError ? "settings-message is-error" : "settings-message"}
+                role={isError ? "alert" : "status"}
+              >
                 {!isError && <CheckIcon />}
                 {message}
               </p>
@@ -209,10 +267,20 @@ export default function SettingsPage({ appVersion }: { appVersion: string }) {
           <div className="settings-account" id="account">
             <div>
               <h2>계정</h2>
-              <p>Google 계정으로 로그인하고 있어요.</p>
+              <p>
+                {IS_TOSS_APP
+                  ? "이 기기에 저장된 계정으로 사용하고 있어요."
+                  : "Google 계정으로 로그인하고 있어요."}
+              </p>
             </div>
+
+            <div className="settings-recovery">
+              <RecoveryKeyIssuer hasKey={hasRecoveryKey} />
+              {IS_TOSS_APP && <RecoveryKeyRedeemer />}
+            </div>
+
             <div className="settings-account-actions">
-              <span>Google</span>
+              <span>{IS_TOSS_APP ? "이 기기" : "Google"}</span>
               <LogoutButton />
             </div>
             <div className="settings-version" aria-label={`앱 버전 ${appVersion}`}>

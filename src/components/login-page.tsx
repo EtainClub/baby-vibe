@@ -2,6 +2,7 @@ import Link from "next/link";
 import { BrandLogo, BrandMark } from "@/components/brand-logo";
 import { GoogleLoginButton } from "@/components/auth/google-login-button";
 import { ArrowRightIcon, CheckIcon } from "@/components/icons";
+import { PUBLIC_APP_HOST } from "@/lib/platform";
 
 export default function LoginPage() {
   return (
@@ -29,7 +30,7 @@ export default function LoginPage() {
               <span className="login-mini-avatar">E</span>
               <div>
                 <strong>E-time님의 앱들</strong>
-                <small>baby-vibe.web.app/etime</small>
+                <small>{PUBLIC_APP_HOST}/etime</small>
               </div>
               <span className="login-mini-count">3개의 앱</span>
             </div>

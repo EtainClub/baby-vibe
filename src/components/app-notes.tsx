@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { type FormEvent, useState } from "react";
 import type { PublicAppNote } from "@/types/app-note";
+import { profileHref } from "@/lib/routes";
+import { apiFetch } from "@/lib/api/client";
 
 const COLLAPSED_NOTE_COUNT = 2;
 const MAX_NOTE_LENGTH = 120;
@@ -37,7 +39,7 @@ export function AppNotes({
     setPending(true);
     setError("");
     try {
-      const response = await fetch(`/api/apps/${encodeURIComponent(appId)}/notes`, {
+      const response = await apiFetch(`/api/apps/${encodeURIComponent(appId)}/notes`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message: draft }),
@@ -74,7 +76,7 @@ export function AppNotes({
             <article className="app-note" key={note.id}>
               <Link
                 className="app-note-avatar"
-                href={`/${note.authorUsername}`}
+                href={profileHref(note.authorUsername)}
                 aria-label={`${note.authorDisplayName}님의 페이지`}
                 style={
                   note.authorPhotoURL
@@ -90,7 +92,7 @@ export function AppNotes({
                 {note.authorDisplayName.charAt(0).toUpperCase() || "?"}
               </Link>
               <div>
-                <Link href={`/${note.authorUsername}`}>{note.authorDisplayName}</Link>
+                <Link href={profileHref(note.authorUsername)}>{note.authorDisplayName}</Link>
                 <p>{note.message}</p>
               </div>
             </article>

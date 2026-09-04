@@ -33,18 +33,56 @@ export async function getUserProfileByUid(uid: string) {
   return mapUserProfile(snapshot.id, snapshot.data()!);
 }
 
-export async function listPublicProfiles(): Promise<PublicUserProfile[]> {
-  const snapshot = await getAdminDb().collection("users").limit(100).get();
-  return snapshot.docs
-    .map((doc) => mapUserProfile(doc.id, doc.data()))
-    .filter((profile) => profile.username && profile.displayName)
-    .sort((left, right) => right.createdAt.getTime() - left.createdAt.getTime())
-    .map(({ username, displayName, bio, photoURL }) => ({
-      username,
-      displayName,
-      bio,
-      photoURL,
-    }));
+export const PUBLIC_PROFILE_PAGE_SIZE = 24;
+
+/**
+ * A page of makers, newest first.
+ *
+ * This used to read the first 100 user documents in whatever order Firestore
+ * returned them and sort in memory, so maker 101 was simply unreachable — and
+ * which 100 you got was arbitrary. The cursor is the last profile's
+ * `createdAt` as an ISO string.
+ */
+export async function listPublicProfiles({
+  limit = PUBLIC_PROFILE_PAGE_SIZE,
+  cursor = null,
+}: { limit?: number; cursor?: string | null } = {}): Promise<{
+  people: PublicUserProfile[];
+  nextCursor: string | null;
+}> {
+  let query = getAdminDb()
+    .collection("users")
+    .orderBy("createdAt", "desc")
+    .limit(limit + 1);
+
+  const startAfter = cursor ? new Date(cursor) : null;
+  if (startAfter && !Number.isNaN(startAfter.getTime())) {
+    query = query.startAfter(Timestamp.fromDate(startAfter));
+  }
+
+  const snapshot = await query.get();
+  const profiles = snapshot.docs.map((doc) =>
+    mapUserProfile(doc.id, doc.data()),
+  );
+  const hasMore = profiles.length > limit;
+  const page = profiles.slice(0, limit);
+
+  return {
+    people: page
+      .filter((profile) => profile.username && profile.displayName)
+      .map(({ username, displayName, bio, photoURL }) => ({
+        username,
+        displayName,
+        bio,
+        photoURL,
+      })),
+    // Paginate on the raw page, not the filtered one: a page that is entirely
+    // incomplete profiles still has to advance the cursor.
+    nextCursor:
+      hasMore && page.length
+        ? page[page.length - 1].createdAt.toISOString()
+        : null,
+  };
 }
 
 export async function getPublicProfileByUsername(

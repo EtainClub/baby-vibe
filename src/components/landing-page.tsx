@@ -1,5 +1,7 @@
 "use client";
 
+import "@/app/marketing.css";
+
 import Link from "next/link";
 import { useState } from "react";
 import { AppCover } from "@/components/app-cover";
@@ -16,9 +18,23 @@ import {
   SparkleIcon,
 } from "@/components/icons";
 import { demoApps } from "@/lib/mock-data";
+import { IS_TOSS_APP, PUBLIC_APP_HOST } from "@/lib/platform";
+import { profileHref } from "@/lib/routes";
 
 const firstApp = demoApps[0];
 const secondApp = demoApps[1];
+
+/**
+ * Inside Toss there is no Google sign-in to offer — the account starts
+ * anonymously — so the CTAs go straight to onboarding, and `/login` is only
+ * the "I already have a page" recovery-key screen.
+ */
+const startHref = IS_TOSS_APP ? "/start" : "/login";
+const startLabel = IS_TOSS_APP
+  ? "내 앱 페이지 만들기"
+  : "Google로 내 앱 페이지 만들기";
+const signInLabel = IS_TOSS_APP ? "기존 페이지 불러오기" : "로그인";
+const exampleHref = profileHref("etime");
 
 export default function LandingPage() {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -32,13 +48,13 @@ export default function LandingPage() {
             <a href="#why">왜 Baby Vibe?</a>
             <a href="#how">만드는 방법</a>
             <Link href="/people">메이커 둘러보기</Link>
-            <Link href="/etime">예시 페이지</Link>
+            <Link href={exampleHref}>예시 페이지</Link>
           </div>
           <div className="desktop-nav-actions">
             <Link className="text-link-button" href="/login">
-              로그인
+              {signInLabel}
             </Link>
-            <Link className="button button-dark button-nav" href="/login">
+            <Link className="button button-dark button-nav" href={startHref}>
               내 페이지 만들기
               <ArrowRightIcon />
             </Link>
@@ -63,9 +79,9 @@ export default function LandingPage() {
           <Link href="/people" onClick={() => setMenuOpen(false)}>
             메이커 둘러보기
           </Link>
-          <Link href="/etime">예시 페이지</Link>
-          <Link href="/login">로그인</Link>
-          <Link className="button button-dark" href="/login">
+          <Link href={exampleHref}>예시 페이지</Link>
+          <Link href="/login">{signInLabel}</Link>
+          <Link className="button button-dark" href={startHref}>
             내 페이지 만들기
             <ArrowRightIcon />
           </Link>
@@ -92,11 +108,17 @@ export default function LandingPage() {
               완성됩니다.
             </p>
             <div className="hero-actions">
-              <Link className="button button-primary button-large" href="/login">
-                <GoogleIcon />
-                Google로 내 앱 페이지 만들기
+              <Link
+                className="button button-primary button-large"
+                href={startHref}
+              >
+                {!IS_TOSS_APP && <GoogleIcon />}
+                {startLabel}
               </Link>
-              <Link className="button button-quiet button-large" href="/etime">
+              <Link
+                className="button button-quiet button-large"
+                href={exampleHref}
+              >
                 예시 페이지 보기
                 <ArrowUpRightIcon />
               </Link>
@@ -124,7 +146,7 @@ export default function LandingPage() {
                 </div>
                 <div className="window-address">
                   <span className="address-lock">●</span>
-                  baby-vibe.web.app/etime
+                  {PUBLIC_APP_HOST}/etime
                 </div>
                 <span className="window-more">•••</span>
               </div>
@@ -310,7 +332,7 @@ export default function LandingPage() {
                   <BrandMark small />
                   <span>
                     <b>E-time님의 앱들</b>
-                    baby-vibe.web.app/etime
+                    {PUBLIC_APP_HOST}/etime
                   </span>
                   <CopyIcon />
                 </div>
@@ -452,9 +474,9 @@ export default function LandingPage() {
               당신은 만드는 사람입니다.
             </h2>
             <p>오늘 만든 앱부터 모아보세요. 다음 앱을 위한 자리가 생길 거예요.</p>
-            <Link className="button button-white button-large" href="/login">
-              <GoogleIcon />
-              Google로 내 페이지 만들기
+            <Link className="button button-white button-large" href={startHref}>
+              {!IS_TOSS_APP && <GoogleIcon />}
+              {IS_TOSS_APP ? "내 페이지 만들기" : "Google로 내 페이지 만들기"}
             </Link>
             <small>무료로 시작 · 카드 정보 필요 없음</small>
           </div>
@@ -468,8 +490,8 @@ export default function LandingPage() {
           <div className="footer-links">
             <a href="#why">서비스 소개</a>
             <Link href="/people">메이커 둘러보기</Link>
-            <Link href="/etime">예시 페이지</Link>
-            <a href="mailto:hello@baby-vibe.web.app">문의하기</a>
+            <Link href={exampleHref}>예시 페이지</Link>
+            <a href={`mailto:hello@${PUBLIC_APP_HOST}`}>문의하기</a>
           </div>
           <span>© 2026 Baby Vibe</span>
         </div>

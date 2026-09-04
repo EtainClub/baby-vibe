@@ -12,6 +12,7 @@ import {
   getFirebaseClientServices,
   isFirebaseClientConfigured,
 } from "@/lib/firebase/client";
+import { apiFetch } from "@/lib/api/client";
 
 interface ApiEnvelope<T> {
   ok: boolean;
@@ -40,7 +41,7 @@ export function GoogleLoginButton() {
       const credential = await signInWithPopup(services.auth, provider);
       const idToken = await credential.user.getIdToken(true);
 
-      const sessionResponse = await fetch("/api/auth/session", {
+      const sessionResponse = await apiFetch("/api/auth/session", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ idToken }),
@@ -50,16 +51,14 @@ export function GoogleLoginButton() {
         throw new Error(sessionResult.error?.message || "로그인 세션을 만들지 못했어요.");
       }
 
-      const profileResponse = await fetch("/api/profile", { cache: "no-store" });
+      const profileResponse = await apiFetch("/api/profile", { cache: "no-store" });
       if (profileResponse.status === 404) {
         router.push("/start");
       } else if (profileResponse.ok) {
         const profileResult = (await profileResponse.json()) as ApiEnvelope<{
-          onboardingCompleted?: boolean;
+          username?: string;
         } | null>;
-        router.push(
-          profileResult.data?.onboardingCompleted ? "/home" : "/start",
-        );
+        router.push(profileResult.data ? "/home" : "/start");
       } else {
         router.push("/start");
       }

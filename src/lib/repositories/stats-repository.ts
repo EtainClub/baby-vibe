@@ -109,6 +109,34 @@ export async function cheerApp(appId: string, visitorId: string) {
   });
 }
 
+/** Cheer state for many apps at once — one `getAll` instead of one per app. */
+export async function listAppCheerStates(
+  appIds: string[],
+  visitorId: string | null,
+) {
+  const db = getAdminDb();
+  const statsRefs = appIds.map((appId) => db.collection("appStats").doc(appId));
+  const cheerRefs = visitorId
+    ? appIds.map((appId) =>
+        db.collection("appCheers").doc(getReactionHash(appId, visitorId)),
+      )
+    : [];
+
+  const snapshots = await db.getAll(...statsRefs, ...cheerRefs);
+  const stats = snapshots.slice(0, appIds.length);
+  const cheers = snapshots.slice(appIds.length);
+
+  return Object.fromEntries(
+    appIds.map((appId, index) => [
+      appId,
+      {
+        cheered: Boolean(cheers[index]?.exists),
+        cheers: Number(stats[index]?.get("cheers") ?? 0),
+      },
+    ]),
+  ) as Record<string, { cheered: boolean; cheers: number }>;
+}
+
 export async function getAppCheerState(appId: string, visitorId: string | null) {
   const db = getAdminDb();
   const statsRef = db.collection("appStats").doc(appId);

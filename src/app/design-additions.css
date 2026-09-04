@@ -969,3 +969,491 @@ button.dashboard-avatar {
     display: none;
   }
 }
+
+/* ── Apps in Toss ──────────────────────────────────────────────────────────
+   Styles for the Toss mini-app build only, keyed off <html data-toss="1">.
+   The web build never matches these selectors. */
+
+.toss-splash {
+  display: flex;
+  min-height: 100dvh;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 24px;
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 600;
+  text-align: center;
+}
+
+.toss-splash svg {
+  opacity: 0.9;
+}
+
+.recovery-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--paper);
+}
+
+.recovery-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.recovery-kicker svg {
+  width: 17px;
+  height: 17px;
+}
+
+.recovery-hint {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.recovery-code {
+  display: block;
+  padding: 14px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--canvas);
+  color: var(--ink);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 19px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+.recovery-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.recovery-ack {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.recovery-field input {
+  width: 100%;
+  padding: 13px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--canvas);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 16px; /* 16px keeps iOS from zooming the field on focus. */
+  letter-spacing: 0.06em;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.settings-recovery {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 4px 0 16px;
+}
+
+.sr-only {
+  position: absolute;
+  overflow: hidden;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  border: 0;
+  margin: -1px;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* The landing page is the mini app's entry screen, so its floating header and
+   the hero underneath it have to clear the notch the Toss shell leaves us. */
+[data-toss="1"] .site-header {
+  top: max(18px, env(safe-area-inset-top));
+}
+
+[data-toss="1"] .hero-section {
+  padding-top: calc(118px + env(safe-area-inset-top));
+}
+
+[data-toss="1"] .landing-shell {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* Toss mini-apps run inside a native shell that already draws a header, so the
+   marketing chrome is dropped and the layout starts at the safe area. */
+[data-toss="1"] .login-shell-toss .login-topbar {
+  display: none;
+}
+
+[data-toss="1"] .login-main-toss {
+  display: block;
+  padding-top: max(24px, env(safe-area-inset-top));
+}
+
+/* The tab bar already floats as a card at mobile widths — inside Toss that is
+   the only layout, at every width, and it has to clear the home indicator. */
+[data-toss="1"] .mobile-bottom-nav {
+  position: fixed;
+  right: 14px;
+  bottom: calc(env(safe-area-inset-bottom) + 10px);
+  left: 14px;
+  z-index: 80;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  width: min(520px, calc(100% - 28px));
+  min-height: 70px;
+  margin-inline: auto;
+  padding: 7px;
+  border: 1px solid rgba(255, 255, 255, 0.78);
+  border-radius: 22px;
+  background: rgba(252, 251, 248, 0.9);
+  box-shadow: 0 18px 50px rgba(29, 31, 26, 0.18);
+  backdrop-filter: blur(24px) saturate(160%);
+}
+
+[data-toss="1"] .mobile-bottom-nav a {
+  display: flex;
+  min-width: 0;
+  min-height: 56px;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 3px;
+  border-radius: 16px;
+  color: #8a8b85;
+  font-size: 11px;
+  font-weight: 690;
+  transition:
+    background-color 160ms ease,
+    color 160ms ease,
+    transform 100ms ease;
+}
+
+[data-toss="1"] .mobile-bottom-nav a:active {
+  transform: scale(0.96);
+}
+
+[data-toss="1"] .mobile-bottom-nav a.is-current {
+  background: #e8eeff;
+  color: #3159c0;
+}
+
+[data-toss="1"] .mobile-bottom-nav svg {
+  width: 21px;
+  height: 21px;
+  stroke-width: 1.9;
+}
+
+[data-toss="1"] .dashboard-content,
+[data-toss="1"] .people-main,
+[data-toss="1"] .settings-main,
+[data-toss="1"] .public-profile-main {
+  padding-bottom: calc(120px + env(safe-area-inset-bottom));
+}
+
+/* The desktop side rail and marketing footer have no place in a phone shell. */
+[data-toss="1"] .dashboard-rail,
+[data-toss="1"] .people-topbar,
+[data-toss="1"] .public-footer {
+  display: none;
+}
+
+/* ── Confirmation sheet ────────────────────────────────────────────────────
+   Replaces window.confirm(), which is unstyled and — inside the Toss webview —
+   collides with the system back gesture. */
+
+.confirm-sheet {
+  max-height: none;
+  padding-bottom: calc(30px + env(safe-area-inset-bottom));
+}
+
+.confirm-sheet .sheet-heading h2 {
+  overflow-wrap: anywhere;
+}
+
+.confirm-sheet-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.confirm-sheet-actions .button {
+  justify-content: center;
+  min-height: 50px;
+}
+
+.confirm-sheet-destructive {
+  border-color: transparent;
+  background: #c0432c;
+  color: white;
+}
+
+.confirm-sheet-destructive:active {
+  background: #a53923;
+}
+
+/* ── Loading and failure states ────────────────────────────────────────────
+   Data now arrives client-side on every screen (always inside Toss), so the
+   gap between "nothing yet" and "nothing at all" has to be visible. */
+
+.skeleton {
+  border-radius: var(--radius-sm);
+  background: linear-gradient(
+    100deg,
+    rgba(23, 24, 20, 0.055) 30%,
+    rgba(23, 24, 20, 0.1) 48%,
+    rgba(23, 24, 20, 0.055) 66%
+  );
+  background-size: 300% 100%;
+  animation: skeleton-sweep 1.4s ease-in-out infinite;
+}
+
+@keyframes skeleton-sweep {
+  from {
+    background-position: 130% 0;
+  }
+  to {
+    background-position: -30% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton {
+    animation: none;
+  }
+}
+
+.skeleton-app-card {
+  height: 148px;
+  border-radius: var(--radius-md);
+}
+
+.skeleton-person-card {
+  height: 132px;
+  border-radius: var(--radius-md);
+}
+
+.skeleton-line {
+  height: 13px;
+}
+
+.skeleton-stat {
+  height: 74px;
+  border-radius: var(--radius-md);
+}
+
+.load-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 9px;
+  padding: 30px 22px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--paper);
+  text-align: center;
+}
+
+.load-error > span {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border-radius: 14px;
+  background: var(--canvas);
+  color: var(--muted);
+}
+
+.load-error > span svg {
+  width: 20px;
+  height: 20px;
+}
+
+.load-error h3 {
+  margin: 0;
+  color: var(--ink);
+  font-size: 15px;
+  font-weight: 720;
+}
+
+.load-error p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.load-error .button {
+  margin-top: 4px;
+}
+
+/* ── Maker directory: recent apps timeline ─────────────────────────────────
+   A static roster gives nobody a reason to come back; a timeline does. */
+
+.people-section-heading h2 {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.people-section-heading h2 svg {
+  width: 17px;
+  height: 17px;
+  color: var(--blue);
+}
+
+.recent-app-rail {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fill, minmax(258px, 1fr));
+}
+
+.recent-app-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--paper);
+}
+
+.recent-app-owner {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: inherit;
+  text-decoration: none;
+}
+
+.recent-app-owner > span:last-child {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+}
+
+.recent-app-owner strong {
+  overflow: hidden;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.recent-app-owner small {
+  color: var(--muted);
+  font-size: 11.5px;
+}
+
+.recent-app-avatar {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  flex: none;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--canvas);
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.recent-app-body {
+  display: flex;
+  gap: 12px;
+}
+
+.recent-app-body > div {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.recent-app-body h3 {
+  overflow: hidden;
+  margin: 0;
+  color: var(--ink);
+  font-size: 15px;
+  font-weight: 720;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.recent-app-body p {
+  display: -webkit-box;
+  overflow: hidden;
+  margin: 0;
+  color: var(--muted);
+  font-size: 12.5px;
+  line-height: 1.5;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.recent-app-open {
+  justify-content: center;
+}
+
+.people-load-more {
+  width: 100%;
+  justify-content: center;
+  margin-top: 14px;
+}
+
+.settings-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 4px 0 8px;
+}
+
+/* ── Dead app links ───────────────────────────────────────────────────────
+   Vibe-coded apps get un-deployed constantly, and a profile full of dead
+   links is the opposite of a portfolio. */
+
+.app-health-warning {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 9px;
+  border-radius: 999px;
+  background: #fbe7e1;
+  color: #9d3a22;
+  font-size: 11.5px;
+  font-weight: 700;
+}
+
+.app-health-warning svg {
+  width: 13px;
+  height: 13px;
+}
+
+.public-profile-skeleton {
+  display: flex;
+  max-width: 620px;
+  flex-direction: column;
+  gap: 14px;
+  padding: max(24px, env(safe-area-inset-top)) 18px 32px;
+  margin-inline: auto;
+}

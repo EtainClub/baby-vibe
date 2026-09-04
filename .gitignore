@@ -48,3 +48,8 @@ firestore-debug.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# apps in toss
+.granite/
+*.ait
+/.toss-build-stash/

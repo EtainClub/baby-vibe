@@ -38,6 +38,12 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // Recovery-key lookup: hash -> uid. Only the Admin SDK ever touches this;
+    // a readable copy would turn every key into a guessable account handle.
+    match /recoveryKeys/{hash} {
+      allow read, write: if false;
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }

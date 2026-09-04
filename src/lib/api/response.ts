@@ -1,4 +1,5 @@
 import { AppError } from "@/lib/errors";
+import { TOSS_APP_ORIGINS } from "@/lib/platform";
 
 export function jsonError(error: unknown) {
   if (error instanceof AppError) {
@@ -40,6 +41,11 @@ export async function readJson(request: Request, maxBytes = 20_000) {
 }
 
 export function assertSameOrigin(request: Request) {
+  // Bearer-authenticated calls (the Apps in Toss bundle) send no cookies, so
+  // there is no ambient authority for another origin to ride on — the origin
+  // check exists purely as CSRF defence for the cookie session.
+  if (request.headers.get("authorization")?.startsWith("Bearer ")) return;
+
   const origin = request.headers.get("origin");
   if (!origin) return;
 
@@ -66,7 +72,9 @@ export function assertSameOrigin(request: Request) {
     ? new URL(`${forwardedProtocol || requestUrl.protocol.replace(":", "")}://${host}`)
         .origin
     : requestUrl.origin;
-  const allowedOrigins = new Set([currentOrigin]);
+  // The Apps in Toss webview is served from Toss's own origin, so its requests
+  // are cross-origin by construction — see TOSS_APP_ORIGINS.
+  const allowedOrigins = new Set([currentOrigin, ...TOSS_APP_ORIGINS]);
 
   if (process.env.NEXT_PUBLIC_APP_URL) {
     allowedOrigins.add(new URL(process.env.NEXT_PUBLIC_APP_URL).origin);

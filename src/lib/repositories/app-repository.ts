@@ -6,13 +6,17 @@ import { getAdminDb } from "@/lib/firebase/admin";
 import type {
   CreateAppInput,
   PublicVibeApp,
+  RecentPublicApp,
   UpdateAppInput,
   VibeApp,
 } from "@/types/app";
 import type { AppStats } from "@/types/stats";
 
-const MAX_APPS_WITHOUT_GOOGLE = 5;
-const MAX_APPS_WITH_GOOGLE = 50;
+// An account that can survive losing this device — a linked Google account,
+// or an issued recovery key — gets the full quota. Everything else is a
+// throwaway session, so it stays on the small tier.
+const MAX_APPS_UNRECOVERABLE = 5;
+const MAX_APPS_RECOVERABLE = 50;
 
 function toDate(value: unknown) {
   return value instanceof Timestamp ? value.toDate() : new Date(0);
@@ -34,6 +38,11 @@ function mapApp(id: string, data: Record<string, unknown>): VibeApp {
     isFirstApp: Boolean(data.isFirstApp),
     isPublished: Boolean(data.isPublished),
     sortOrder: Number(data.sortOrder ?? 0),
+    health: data.health === "unreachable" ? "unreachable" : "ok",
+    healthCheckedAt:
+      data.healthCheckedAt instanceof Timestamp
+        ? data.healthCheckedAt.toDate()
+        : null,
     createdAt: toDate(data.createdAt),
     updatedAt: toDate(data.updatedAt),
   };
@@ -105,6 +114,7 @@ export async function listPublicAppsForOwner(uid: string): Promise<PublicVibeApp
     status: app.status,
     isFirstApp: app.isFirstApp,
     sortOrder: app.sortOrder,
+    health: app.health,
     outboundClicks: Number(statsById.get(app.id)?.outboundClicks ?? 0),
     cheers: Number(statsById.get(app.id)?.cheers ?? 0),
   }));
@@ -113,13 +123,13 @@ export async function listPublicAppsForOwner(uid: string): Promise<PublicVibeApp
 export async function createApp(
   uid: string,
   input: CreateAppInput,
-  googleLinked: boolean,
+  recoverable: boolean,
 ) {
   const db = getAdminDb();
   const appRef = db.collection("apps").doc();
   const statsRef = db.collection("appStats").doc(appRef.id);
   const userRef = db.collection("users").doc(uid);
-  const maxApps = googleLinked ? MAX_APPS_WITH_GOOGLE : MAX_APPS_WITHOUT_GOOGLE;
+  const maxApps = recoverable ? MAX_APPS_RECOVERABLE : MAX_APPS_UNRECOVERABLE;
 
   await db.runTransaction(async (transaction) => {
     const [profile, existingApps] = await Promise.all([
@@ -133,7 +143,9 @@ export async function createApp(
     if (existingApps.size >= maxApps) {
       throw new AppError(
         "app_limit_reached",
-        `Google 계정 ${googleLinked ? "연동 계정" : "미연동 계정"}은 앱을 최대 ${maxApps}개까지 등록할 수 있어요.`,
+        recoverable
+          ? `앱은 최대 ${maxApps}개까지 등록할 수 있어요.`
+          : `지금은 앱을 최대 ${maxApps}개까지 등록할 수 있어요. Google 로그인이나 복구 키를 만들면 ${MAX_APPS_RECOVERABLE}개까지 늘어나요.`,
         409,
       );
     }
@@ -285,4 +297,114 @@ export async function reorderApps(uid: string, appIds: string[]) {
     });
   });
   await batch.commit();
+}
+
+const RECENT_PUBLIC_APPS_LIMIT = 12;
+
+/**
+ * The newest published apps across every maker.
+ *
+ * `/people` was a static roster, which gives nobody a reason to come back. A
+ * timeline does — and inside Toss, repeat visits are what earns placement.
+ */
+export async function listRecentPublicApps(
+  limit = RECENT_PUBLIC_APPS_LIMIT,
+): Promise<RecentPublicApp[]> {
+  const db = getAdminDb();
+  // The timeline is an extra on top of the maker list, and it is the only
+  // query here that needs a composite index. Failing soft means a fresh
+  // deployment shows the directory instead of a 500 while the index builds.
+  const snapshot = await db
+    .collection("apps")
+    .where("isPublished", "==", true)
+    .orderBy("createdAt", "desc")
+    .limit(limit)
+    .get()
+    .catch((error: unknown) => {
+      console.error("listRecentPublicApps", error);
+      return null;
+    });
+  if (!snapshot) return [];
+
+  const apps = snapshot.docs.map((doc) => mapApp(doc.id, doc.data()));
+  const ownerIds = [...new Set(apps.map((app) => app.ownerId))].filter(Boolean);
+  const owners = ownerIds.length
+    ? await db.getAll(...ownerIds.map((uid) => db.collection("users").doc(uid)))
+    : [];
+  const ownerById = new Map(owners.map((owner) => [owner.id, owner]));
+
+  return apps.flatMap((app) => {
+    const owner = ownerById.get(app.ownerId);
+    const ownerUsername = String(owner?.get("username") ?? "");
+    // An app whose owner never finished a profile has nowhere to link to.
+    if (!ownerUsername) return [];
+
+    return [
+      {
+        id: app.id,
+        name: app.name,
+        description: app.description,
+        url: app.url,
+        imageURL: app.imageURL,
+        faviconURL: app.faviconURL,
+        tool: app.tool,
+        customToolName: app.customToolName,
+        status: app.status,
+        createdAt: app.createdAt.toISOString(),
+        ownerUsername,
+        ownerDisplayName: String(owner?.get("displayName") ?? ownerUsername),
+        ownerPhotoURL:
+          typeof owner?.get("photoURL") === "string"
+            ? (owner.get("photoURL") as string)
+            : null,
+      },
+    ];
+  });
+}
+
+/**
+ * Apps whose health hasn't been probed since `staleBefore`, oldest first.
+ *
+ * Filtered in memory on purpose: `orderBy("healthCheckedAt")` would drop every
+ * document that has never been checked, which is all of them to begin with.
+ * An owner holds at most 50 apps, so reading them is cheap.
+ */
+export async function listAppsNeedingHealthCheck(
+  uid: string,
+  staleBefore: Date,
+  limit = 8,
+) {
+  const snapshot = await getAdminDb()
+    .collection("apps")
+    .where("ownerId", "==", uid)
+    .get();
+
+  return snapshot.docs
+    .map((doc) => ({
+      id: doc.id,
+      url: typeof doc.get("url") === "string" ? (doc.get("url") as string) : null,
+      checkedAt:
+        doc.get("healthCheckedAt") instanceof Timestamp
+          ? (doc.get("healthCheckedAt") as Timestamp).toDate()
+          : null,
+    }))
+    .filter(
+      (app): app is { id: string; url: string; checkedAt: Date | null } =>
+        Boolean(app.url) && (!app.checkedAt || app.checkedAt < staleBefore),
+    )
+    .sort(
+      (left, right) =>
+        (left.checkedAt?.getTime() ?? 0) - (right.checkedAt?.getTime() ?? 0),
+    )
+    .slice(0, limit);
+}
+
+export async function recordAppHealth(
+  appId: string,
+  health: "ok" | "unreachable",
+) {
+  await getAdminDb().collection("apps").doc(appId).update({
+    health,
+    healthCheckedAt: FieldValue.serverTimestamp(),
+  });
 }

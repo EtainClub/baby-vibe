@@ -1,17 +1,132 @@
+"use client";
+
 import Link from "next/link";
+import { useState } from "react";
+import { AppCover } from "@/components/app-cover";
 import { BrandLogo } from "@/components/brand-logo";
-import { ArrowRightIcon, HomeIcon, UsersIcon } from "@/components/icons";
+import {
+  ArrowRightIcon,
+  ArrowUpRightIcon,
+  HomeIcon,
+  SparkleIcon,
+  UsersIcon,
+} from "@/components/icons";
 import { MobileBottomNav } from "@/components/mobile-bottom-nav";
+import { apiFetch } from "@/lib/api/client";
+import { outboundHref, profileHref } from "@/lib/routes";
+import { getToolTone, TOOL_LABELS } from "@/lib/utils/tool-labels";
+import type { RecentPublicApp } from "@/types/app";
 import type { PublicUserProfile } from "@/types/user";
+
+function relativeDay(iso: string) {
+  const days = Math.floor(
+    (Date.now() - new Date(iso).getTime()) / (1000 * 60 * 60 * 24),
+  );
+  if (days <= 0) return "오늘";
+  if (days === 1) return "어제";
+  if (days < 7) return `${days}일 전`;
+  if (days < 30) return `${Math.floor(days / 7)}주 전`;
+  return `${Math.floor(days / 30)}개월 전`;
+}
+
+function RecentAppCard({ app }: { app: RecentPublicApp }) {
+  const toolLabel = app.customToolName || TOOL_LABELS[app.tool] || app.tool;
+
+  return (
+    <article className="recent-app-card">
+      <Link
+        className="recent-app-owner"
+        href={profileHref(app.ownerUsername)}
+        prefetch={false}
+      >
+        <span
+          className="recent-app-avatar"
+          style={
+            app.ownerPhotoURL
+              ? {
+                  backgroundImage: `url("${app.ownerPhotoURL.replace(/["\\]/g, "")}")`,
+                  backgroundPosition: "center",
+                  backgroundSize: "cover",
+                  color: "transparent",
+                }
+              : undefined
+          }
+        >
+          {app.ownerDisplayName.charAt(0).toUpperCase()}
+        </span>
+        <span>
+          <strong>{app.ownerDisplayName}</strong>
+          <small>{relativeDay(app.createdAt)}</small>
+        </span>
+      </Link>
+
+      <div className="recent-app-body">
+        <AppCover kind="alien" compact imageURL={app.imageURL} />
+        <div>
+          <span className={`tool-badge tool-badge-${getToolTone(app.tool, app.customToolName)}`}>
+            <i>✦</i>
+            {toolLabel}
+          </span>
+          <h3>{app.name}</h3>
+          <p>{app.description}</p>
+        </div>
+      </div>
+
+      {app.url && (
+        <a
+          className="button button-quiet recent-app-open"
+          href={outboundHref(app.id)}
+          target="_blank"
+          rel="noreferrer"
+        >
+          앱 열기
+          <ArrowUpRightIcon />
+        </a>
+      )}
+    </article>
+  );
+}
 
 export default function PeoplePage({
   people,
+  recentApps = [],
+  nextCursor = null,
   viewerUsername,
 }: {
   people: PublicUserProfile[];
+  recentApps?: RecentPublicApp[];
+  nextCursor?: string | null;
   viewerUsername?: string | null;
 }) {
-  const otherPeople = people.filter((person) => person.username !== viewerUsername);
+  const [loadedPeople, setLoadedPeople] = useState(people);
+  const [cursor, setCursor] = useState(nextCursor);
+  const [loadingMore, setLoadingMore] = useState(false);
+
+  const otherPeople = loadedPeople.filter(
+    (person) => person.username !== viewerUsername,
+  );
+
+  async function loadMore() {
+    if (!cursor || loadingMore) return;
+    setLoadingMore(true);
+    try {
+      const response = await apiFetch(
+        `/api/people?cursor=${encodeURIComponent(cursor)}`,
+        { cache: "no-store" },
+      ).catch(() => null);
+      const result = response?.ok
+        ? ((await response.json().catch(() => null)) as {
+            data?: { people?: PublicUserProfile[]; nextCursor?: string | null };
+          } | null)
+        : null;
+      if (!result?.data?.people) return;
+
+      setLoadedPeople((current) => [...current, ...result.data!.people!]);
+      setCursor(result.data.nextCursor ?? null);
+    } finally {
+      setLoadingMore(false);
+    }
+  }
 
   return (
     <div className="people-shell">
@@ -33,6 +148,25 @@ export default function PeoplePage({
           <p>궁금한 사람을 골라 그 사람이 공개한 앱들을 한 번에 만나보세요.</p>
         </section>
 
+        {recentApps.length > 0 && (
+          <section className="people-section" aria-labelledby="recent-apps-title">
+            <div className="people-section-heading">
+              <div>
+                <h2 id="recent-apps-title">
+                  <SparkleIcon />
+                  방금 올라온 앱
+                </h2>
+                <p>가장 최근에 공개된 앱들이에요.</p>
+              </div>
+            </div>
+            <div className="recent-app-rail">
+              {recentApps.map((app) => (
+                <RecentAppCard app={app} key={app.id} />
+              ))}
+            </div>
+          </section>
+        )}
+
         <section className="people-section" aria-labelledby="people-list-title">
           <div className="people-section-heading">
             <div>
@@ -47,7 +181,7 @@ export default function PeoplePage({
               {otherPeople.map((person, index) => (
                 <Link
                   className="person-card"
-                  href={`/${person.username}`}
+                  href={profileHref(person.username)}
                   prefetch={false}
                   key={person.username}
                 >
@@ -84,6 +218,17 @@ export default function PeoplePage({
               <h2>곧 새로운 메이커를 만날 수 있어요.</h2>
               <p>다른 사용자가 앱을 공개하면 이곳에 표시됩니다.</p>
             </div>
+          )}
+
+          {cursor && (
+            <button
+              className="button button-quiet people-load-more"
+              type="button"
+              onClick={loadMore}
+              disabled={loadingMore}
+            >
+              {loadingMore ? "불러오는 중…" : "더 보기"}
+            </button>
           )}
         </section>
       </main>

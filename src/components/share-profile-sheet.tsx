@@ -9,6 +9,12 @@ import {
   ShareIcon,
   SparkleIcon,
 } from "@/components/icons";
+import { IS_TOSS_APP } from "@/lib/platform";
+import {
+  copyText as copyTextToClipboard,
+  openExternalUrl,
+  shareMessage,
+} from "@/lib/toss/bridge";
 import { useSheetDrag } from "@/lib/ui/use-sheet-drag";
 
 interface ShareProfileSheetProps {
@@ -22,10 +28,8 @@ interface ShareProfileSheetProps {
 }
 
 async function copyText(value: string) {
-  if (navigator.clipboard) {
-    await navigator.clipboard.writeText(value);
-    return;
-  }
+  // Prefers the Toss clipboard bridge, then navigator.clipboard.
+  if (await copyTextToClipboard(value)) return;
 
   const textarea = document.createElement("textarea");
   textarea.value = value;
@@ -83,27 +87,32 @@ export function ShareProfileSheet({
   }
 
   async function shareNative(fallbackMessage: string) {
-    if (navigator.share) {
-      await navigator
-        .share({
-          title: `${displayName}님의 앱들`,
-          text: message.replace(profileUrl, "").trim(),
-          url: profileUrl,
-        })
-        .catch(() => undefined);
-      return;
-    }
+    const shared = await shareMessage({
+      text: message.replace(profileUrl, "").trim(),
+      url: profileUrl,
+    });
+    if (shared) return;
+
     await copyText(message);
     onNotice(fallbackMessage);
   }
 
-  function shareToX() {
+  async function shareToX() {
     const url = `https://x.com/intent/post?text=${encodeURIComponent(message)}`;
+    // `window.open` is inert in the Toss webview; the bridge has to hand the
+    // URL to the system browser.
+    if (await openExternalUrl(url)) return;
     window.open(url, "_blank", "noopener,noreferrer");
   }
 
   function saveQrCode() {
     if (!qrDataUrl) return;
+    // The Toss webview blocks downloads a page starts itself, so there is
+    // nothing to save there — copying the link is the useful action instead.
+    if (IS_TOSS_APP) {
+      void copyProfileLink();
+      return;
+    }
     const link = document.createElement("a");
     link.href = qrDataUrl;
     link.download = `${username}-baby-vibe-qr.png`;
@@ -196,7 +205,7 @@ export function ShareProfileSheet({
             </div>
             <button type="button" onClick={saveQrCode} disabled={!qrDataUrl}>
               <CheckIcon />
-              QR 저장
+              {IS_TOSS_APP ? "링크 복사" : "QR 저장"}
             </button>
           </div>
 

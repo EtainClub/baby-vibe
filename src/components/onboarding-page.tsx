@@ -9,6 +9,7 @@ import {
   CheckIcon,
   ChevronLeftIcon,
   GoogleIcon,
+  KeyIcon,
   LinkIcon,
   SparkleIcon,
 } from "@/components/icons";
@@ -20,7 +21,11 @@ import {
   uploadAppCover,
   uploadProfileImage,
 } from "@/lib/firebase/upload-image";
+import { IS_TOSS_APP, PUBLIC_APP_HOST } from "@/lib/platform";
+import { profileHref, publicProfileUrl } from "@/lib/routes";
+import { copyText } from "@/lib/toss/bridge";
 import { onAuthStateChanged } from "firebase/auth";
+import { apiFetch } from "@/lib/api/client";
 
 type Step = "profile" | "app" | "done";
 
@@ -34,6 +39,7 @@ interface InitialProfile {
 const tools = [
   ["codex", "❯", "Codex"],
   ["claude-code", "✦", "Claude Code"],
+  ["gemini", "G", "Gemini"],
   ["lovable", "♥", "Lovable"],
   ["bolt", "↯", "Bolt"],
   ["replit", "R", "Replit"],
@@ -136,7 +142,7 @@ export default function OnboardingPage({
     }
     setUsernameState("checking");
     try {
-      const response = await fetch(`/api/username/${encodeURIComponent(username)}`, {
+      const response = await apiFetch(`/api/username/${encodeURIComponent(username)}`, {
         cache: "no-store",
       });
       const result = (await response.json()) as {
@@ -168,7 +174,7 @@ export default function OnboardingPage({
     const formData = new FormData(event.currentTarget);
 
     try {
-      const response = await fetch("/api/profile", {
+      const response = await apiFetch("/api/profile", {
         method: profileSaved ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -185,15 +191,24 @@ export default function OnboardingPage({
       if (response.ok) {
         setProfileSaved(true);
         setStep("app");
-      } else if ([401, 503].includes(response.status)) {
+      } else if (demoMode && response.status === 503) {
+        // No Firebase configured: the tour still has to be walkable.
         setProfileSaved(false);
         setStep("app");
+      } else if (response.status === 401) {
+        setFormError("로그인이 풀렸어요. 앱을 다시 열고 시도해 주세요.");
       } else {
         setFormError(result.error?.message || "프로필을 저장하지 못했어요.");
       }
     } catch {
-      setProfileSaved(false);
-      setStep("app");
+      // Moving on after a failed save used to look like success and then lose
+      // everything at the end — only the demo tour may skip ahead.
+      if (demoMode) {
+        setProfileSaved(false);
+        setStep("app");
+      } else {
+        setFormError("연결이 불안정해요. 잠시 뒤에 다시 시도해 주세요.");
+      }
     } finally {
       setPending(false);
     }
@@ -208,14 +223,21 @@ export default function OnboardingPage({
     setPending(true);
     setFormError("");
 
+    // Without a saved profile there is nothing to attach the app to. The demo
+    // tour has no backend at all, so only it may show the finished screen.
     if (!profileSaved) {
       setPending(false);
-      setStep("done");
+      if (demoMode) {
+        setStep("done");
+      } else {
+        setStep("profile");
+        setFormError("프로필을 먼저 저장해 주세요. 저장이 끝나야 앱을 올릴 수 있어요.");
+      }
       return;
     }
 
     try {
-      const response = await fetch("/api/apps", {
+      const response = await apiFetch("/api/apps", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -241,7 +263,7 @@ export default function OnboardingPage({
       if (appCoverFile && result.data?.id) {
         try {
           const imageURL = await uploadAppCover(appCoverFile, result.data.id);
-          await fetch(`/api/apps/${result.data.id}`, {
+          await apiFetch(`/api/apps/${result.data.id}`, {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ imageURL }),
@@ -273,7 +295,7 @@ export default function OnboardingPage({
     setAppCoverPreview(null);
 
     try {
-      const response = await fetch("/api/inspect", {
+      const response = await apiFetch("/api/inspect", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ url: appUrl }),
@@ -333,8 +355,8 @@ export default function OnboardingPage({
   }
 
   async function copyProfileLink() {
-    const profileUrl = `${window.location.origin}/${username}`;
-    await navigator.clipboard?.writeText(profileUrl);
+    const profileUrl = publicProfileUrl(username);
+    await copyText(profileUrl);
     setCopied(true);
     window.setTimeout(() => setCopied(false), 2200);
   }
@@ -348,7 +370,10 @@ export default function OnboardingPage({
             {step === "profile" ? "1" : "2"} <i>/</i> 2
           </span>
         )}
-        <Link className="onboarding-exit" href="/">
+        {/* Skipping has to actually go somewhere: `/` shows the landing page
+            to a visitor with no profile yet, and the dashboard once there is
+            one, so a half-finished onboarding is never a dead end. */}
+        <Link className="onboarding-exit" href={profileSaved ? "/home" : "/"}>
           나중에 하기
         </Link>
       </header>
@@ -474,7 +499,6 @@ export default function OnboardingPage({
               <label className="field-group">
                 <span>사용자명</span>
                 <div className="username-input">
-                  <i>baby-vibe.web.app/</i>
                   <input
                     name="username"
                     value={username}
@@ -494,6 +518,10 @@ export default function OnboardingPage({
                     onBlur={() => void checkUsername()}
                     minLength={3}
                     maxLength={24}
+                    placeholder="username"
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                    spellCheck={false}
                     disabled={profileSaved}
                     required
                   />
@@ -737,7 +765,7 @@ export default function OnboardingPage({
               <div className="complete-url">
                 <span>
                   <LinkIcon />
-                  baby-vibe.web.app/{username || "etime"}
+                  {PUBLIC_APP_HOST}/{username || "etime"}
                 </span>
                 <button type="button" onClick={() => void copyProfileLink()}>
                   {copied ? "복사했어요" : "링크 복사"}
@@ -745,7 +773,7 @@ export default function OnboardingPage({
                 </button>
               </div>
               <div className="complete-actions">
-                <Link className="button button-primary" href={`/${username}`}>
+                <Link className="button button-primary" href={profileHref(username)}>
                   내 페이지 보기
                   <ArrowUpRightIcon />
                 </Link>
@@ -755,10 +783,12 @@ export default function OnboardingPage({
                 </Link>
               </div>
               <div className="complete-google-note">
-                <GoogleIcon />
-                {profileSaved
-                  ? "Google 계정으로 안전하게 저장되었어요"
-                  : "Firebase를 연결하면 Google 계정에 안전하게 저장돼요"}
+                {IS_TOSS_APP ? <KeyIcon /> : <GoogleIcon />}
+                {IS_TOSS_APP
+                  ? "설정에서 복구 키를 만들어 두면 기기를 바꿔도 그대로 열려요"
+                  : profileSaved
+                    ? "Google 계정으로 안전하게 저장되었어요"
+                    : "Firebase를 연결하면 Google 계정에 안전하게 저장돼요"}
               </div>
             </div>
           )}

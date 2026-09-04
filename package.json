@@ -1,15 +1,19 @@
 {
   "name": "baby-vibehub",
-  "version": "0.1.1",
+  "version": "0.1.4",
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "dev:toss": "TOSS_BUILD=1 NEXT_PUBLIC_TOSS_APP=1 next dev --webpack",
     "build": "next build --webpack",
+    "build:toss": "node scripts/build-toss.mjs",
+    "build:ait": "pnpm build:toss && ait build",
     "start": "next start",
     "lint": "eslint",
     "deploy": "IS_WEBPACK_TEST=1 NEXT_PUBLIC_APP_URL=https://baby.etain.club firebase deploy --only hosting,storage,firestore"
   },
   "dependencies": {
+    "@apps-in-toss/web-framework": "^3.1.1",
     "firebase": "^12.16.0",
     "firebase-admin": "^12.7.0",
     "next": "16.2.11",

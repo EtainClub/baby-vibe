@@ -15,6 +15,8 @@ export type DemoApp = {
   faviconURL?: string | null;
   url?: string | null;
   isPublished?: boolean;
+  /** Set to "unreachable" once a health probe fails to reach the app's URL. */
+  health?: "ok" | "unreachable";
 };
 
 export const demoApps: DemoApp[] = [

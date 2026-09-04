@@ -13,11 +13,6 @@ import {
   type Auth,
 } from "firebase/auth";
 import {
-  connectFirestoreEmulator,
-  getFirestore,
-  type Firestore,
-} from "firebase/firestore";
-import {
   connectStorageEmulator,
   getStorage,
   type FirebaseStorage,
@@ -39,10 +34,12 @@ export const isFirebaseClientConfigured = Boolean(
     firebaseConfig.appId,
 );
 
+// No Firestore here on purpose: every read and write goes through the JSON API
+// (Admin SDK), and shipping the Firestore SDK would put its WebChannel /
+// IndexedDB codegen — which Toss app review flags as eval — into the bundle.
 export interface FirebaseClientServices {
   app: FirebaseApp;
   auth: Auth;
-  db: Firestore;
   storage: FirebaseStorage;
 }
 
@@ -76,21 +73,18 @@ export function getFirebaseClientServices(): FirebaseClientServices | null {
     });
   }
 
-  const db = getFirestore(app);
   const storage = getStorage(app);
   if (usesEmulators && !emulatorsConnected) {
     emulatorsConnected = true;
     connectAuthEmulator(auth, "http://127.0.0.1:9099", {
       disableWarnings: true,
     });
-    connectFirestoreEmulator(db, "127.0.0.1", 8080);
     connectStorageEmulator(storage, "127.0.0.1", 9199);
   }
 
   services = {
     app,
     auth,
-    db,
     storage,
   };
 

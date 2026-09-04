@@ -7,6 +7,15 @@ import { signOut } from "firebase/auth";
 import { AppCover } from "@/components/app-cover";
 import { BrandLogo } from "@/components/brand-logo";
 import { ShareProfileSheet } from "@/components/share-profile-sheet";
+import {
+  ConfirmSheet,
+  type ConfirmRequest,
+} from "@/components/confirm-sheet";
+import {
+  LoadError,
+  Skeleton,
+  useLoadStatus,
+} from "@/components/ui/load-state";
 import { MobileBottomNav } from "@/components/mobile-bottom-nav";
 import {
   ArrowRightIcon,
@@ -18,6 +27,7 @@ import {
   HomeIcon,
   MoreIcon,
   PlusIcon,
+  AlertIcon,
   ShareIcon,
   SignOutIcon,
   SparkleIcon,
@@ -28,10 +38,14 @@ import {
   isFirebaseClientConfigured,
 } from "@/lib/firebase/client";
 import { demoApps, statusLabel } from "@/lib/mock-data";
+import { IS_TOSS_APP } from "@/lib/platform";
+import { profileHref, publicProfileUrl } from "@/lib/routes";
+import { copyText } from "@/lib/toss/bridge";
 import { uploadAppCover } from "@/lib/firebase/upload-image";
 import { useSheetDrag } from "@/lib/ui/use-sheet-drag";
-import { TOOL_LABELS } from "@/lib/utils/tool-labels";
+import { getToolTone, TOOL_LABELS } from "@/lib/utils/tool-labels";
 import type { VibeTool } from "@/types/app";
+import { apiFetch } from "@/lib/api/client";
 
 export default function DashboardPage() {
   const demoMode = !isFirebaseClientConfigured;
@@ -59,6 +73,9 @@ export default function DashboardPage() {
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
   const [draggedAppId, setDraggedAppId] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState("");
+  const [confirmRequest, setConfirmRequest] = useState<ConfirmRequest | null>(
+    null,
+  );
   const [apps, setApps] = useState(demoMode ? demoApps : []);
   const [profile, setProfile] = useState({
     username: demoMode ? "etime" : "",
@@ -66,6 +83,11 @@ export default function DashboardPage() {
     photoURL: null as string | null,
   });
   const [usingSavedApps, setUsingSavedApps] = useState(false);
+  const [reloadToken, setReloadToken] = useState(0);
+  const [loadStatus, setLoadStatus] = useLoadStatus(
+    reloadToken,
+    demoMode ? "ready" : "loading",
+  );
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
   const router = useRouter();
@@ -81,12 +103,13 @@ export default function DashboardPage() {
   }, [apps]);
 
   useEffect(() => {
+    if (demoMode) return;
     let cancelled = false;
 
     async function loadApps() {
       const [response, profileResponse] = await Promise.all([
-        fetch("/api/apps", { cache: "no-store" }).catch(() => null),
-        fetch("/api/profile", { cache: "no-store" }).catch(() => null),
+        apiFetch("/api/apps", { cache: "no-store" }).catch(() => null),
+        apiFetch("/api/profile", { cache: "no-store" }).catch(() => null),
       ]);
       if (profileResponse?.ok && !cancelled) {
         const profileResult = (await profileResponse.json()) as {
@@ -100,7 +123,12 @@ export default function DashboardPage() {
           });
         }
       }
-      if (!response?.ok || cancelled) return;
+      if (cancelled) return;
+      if (!response?.ok) {
+        // A dropped request is not an empty account — say which one it is.
+        setLoadStatus("error");
+        return;
+      }
       const result = (await response.json()) as {
         data?: Array<{
           id: string;
@@ -114,13 +142,17 @@ export default function DashboardPage() {
           url: string | null;
           isPublished: boolean;
           isFirstApp: boolean;
+          health?: "ok" | "unreachable";
           stats?: { outboundClicks?: number; cheers?: number };
         }>;
       };
-      if (!result.data || cancelled) return;
+      if (cancelled) return;
+      if (!result.data) {
+        setLoadStatus("error");
+        return;
+      }
 
       const covers = ["alien", "coin", "quiet"] as const;
-      const tones = ["blue", "pink", "orange"] as const;
       setApps(
         result.data.map((app, index) => ({
           id: app.id,
@@ -130,7 +162,7 @@ export default function DashboardPage() {
             app.customToolName ||
             TOOL_LABELS[app.tool as VibeTool] ||
             app.tool,
-          toolTone: tones[index % tones.length],
+          toolTone: getToolTone(app.tool as VibeTool, app.customToolName),
           status: app.status,
           cover: covers[index % covers.length],
           clicks: Number(app.stats?.outboundClicks ?? 0),
@@ -140,16 +172,47 @@ export default function DashboardPage() {
           faviconURL: app.faviconURL,
           url: app.url,
           isPublished: app.isPublished,
+          health: app.health ?? "ok",
         })),
       );
       setUsingSavedApps(true);
+      setLoadStatus("ready");
+      void refreshAppHealth();
+    }
+
+    /**
+     * Re-probes stale app links in the background.
+     *
+     * Vibe-coded apps get un-deployed constantly, and nobody notices their own
+     * dead link. Piggybacking on dashboard visits spreads the work out without
+     * needing a scheduler.
+     */
+    async function refreshAppHealth() {
+      const response = await apiFetch("/api/apps/health", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: "{}",
+      }).catch(() => null);
+      if (!response?.ok || cancelled) return;
+
+      const result = (await response.json().catch(() => null)) as {
+        data?: Record<string, "ok" | "unreachable">;
+      } | null;
+      const health = result?.data;
+      if (!health || !Object.keys(health).length || cancelled) return;
+
+      setApps((current) =>
+        current.map((app) =>
+          health[app.id] ? { ...app, health: health[app.id] } : app,
+        ),
+      );
     }
 
     void loadApps();
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [demoMode, reloadToken, setLoadStatus]);
 
   const totals = useMemo(
     () => ({
@@ -226,7 +289,7 @@ export default function DashboardPage() {
     setSheetCoverPreview(null);
 
     try {
-      const response = await fetch("/api/inspect", {
+      const response = await apiFetch("/api/inspect", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ url: sheetUrl }),
@@ -340,7 +403,7 @@ export default function DashboardPage() {
       if (sheetCoverFile && savedId) {
         try {
           savedImageURL = await uploadAppCover(sheetCoverFile, savedId);
-          const imageRes = await fetch(`/api/apps/${savedId}`, {
+          const imageRes = await apiFetch(`/api/apps/${savedId}`, {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ imageURL: savedImageURL }),
@@ -369,6 +432,7 @@ export default function DashboardPage() {
                     sheetTool === "other"
                       ? sheetCustomToolName.trim()
                       : TOOL_LABELS[sheetTool as VibeTool] ?? sheetTool,
+                  toolTone: getToolTone(sheetTool as VibeTool, sheetCustomToolName),
                   status: sheetStatus,
                   imageURL: savedImageURL,
                   faviconURL: sheetFaviconURL,
@@ -380,7 +444,6 @@ export default function DashboardPage() {
       } else {
         const index = apps.length;
         const covers = ["alien", "coin", "quiet"] as const;
-        const tones = ["blue", "pink", "orange"] as const;
         setApps((current) => [
           ...current,
           {
@@ -393,7 +456,7 @@ export default function DashboardPage() {
                 ? sheetCustomToolName.trim()
                 : TOOL_LABELS[sheetTool as VibeTool] ?? sheetTool,
             status: sheetStatus,
-            toolTone: tones[index % tones.length],
+            toolTone: getToolTone(sheetTool as VibeTool, sheetCustomToolName),
             cover: covers[index % covers.length],
             clicks: 0,
             cheers: 0,
@@ -434,7 +497,7 @@ export default function DashboardPage() {
     );
     setActiveMenu(null);
     if (usingSavedApps) {
-      await fetch(`/api/apps/${appId}`, {
+      await apiFetch(`/api/apps/${appId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ isPublished: nextPublished }),
@@ -443,21 +506,28 @@ export default function DashboardPage() {
     showToast(nextPublished ? "앱을 다시 공개했어요" : "페이지에서 앱을 숨겼어요");
   }
 
-  async function removeApp(appId: string, name: string) {
-    if (!window.confirm(`“${name}” 앱을 삭제할까요? 이 작업은 되돌릴 수 없어요.`)) {
-      return;
-    }
-    setApps((current) => current.filter((app) => app.id !== appId));
+  function removeApp(appId: string, name: string) {
     setActiveMenu(null);
+    setConfirmRequest({
+      title: `“${name}” 앱을 삭제할까요?`,
+      description: "이 작업은 되돌릴 수 없어요.",
+      confirmLabel: "삭제하기",
+      destructive: true,
+      onConfirm: () => void confirmRemoveApp(appId),
+    });
+  }
+
+  async function confirmRemoveApp(appId: string) {
+    setApps((current) => current.filter((app) => app.id !== appId));
     if (usingSavedApps) {
-      await fetch(`/api/apps/${appId}`, { method: "DELETE" }).catch(() => null);
+      await apiFetch(`/api/apps/${appId}`, { method: "DELETE" }).catch(() => null);
     }
     showToast("앱을 삭제했어요");
   }
 
   async function copyCrossPromotionPrompt() {
-    const prompt = `이 앱의 하단 또는 About 영역에 다음 버튼을 추가해줘.\n\n버튼 문구:\n"제가 만든 다른 앱 보기"\n\n연결 주소:\n${window.location.origin}/${profile.username}\n\n현재 앱의 디자인과 자연스럽게 어울리게 만들고,\n모바일에서도 잘 보이게 해줘.\n새 창에서 열리도록 설정해줘.`;
-    await navigator.clipboard?.writeText(prompt);
+    const prompt = `이 앱의 하단 또는 About 영역에 다음 버튼을 추가해줘.\n\n버튼 문구:\n"제가 만든 다른 앱 보기"\n\n연결 주소:\n${publicProfileUrl(profile.username)}\n\n현재 앱의 디자인과 자연스럽게 어울리게 만들고,\n모바일에서도 잘 보이게 해줘.\n새 창에서 열리도록 설정해줘.`;
+    await copyText(prompt);
     showToast("AI 도구용 프롬프트를 복사했어요");
   }
 
@@ -475,7 +545,7 @@ export default function DashboardPage() {
 
   function persistAppOrder(orderedApps: typeof apps) {
     if (!usingSavedApps) return;
-    void fetch("/api/apps/reorder", {
+    void apiFetch("/api/apps/reorder", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ appIds: orderedApps.map((app) => app.id) }),
@@ -528,19 +598,33 @@ export default function DashboardPage() {
   }
 
   function openShareSheet() {
-    setShareProfileUrl(`${window.location.origin}/${profile.username}`);
+    setShareProfileUrl(publicProfileUrl(profile.username));
     setShareSession((current) => current + 1);
     setShareOpen(true);
   }
 
-  async function handleLogout() {
+  function handleLogout() {
     if (loggingOut) return;
-    setLoggingOut(true);
     setProfileMenuOpen(false);
+    setConfirmRequest({
+      title: "로그아웃할까요?",
+      // An anonymous Toss account has no provider to sign back in with, so
+      // signing out without a recovery key strands the page for good.
+      description: IS_TOSS_APP
+        ? "복구 키를 저장하지 않았다면 이 페이지로 다시 돌아올 수 없어요."
+        : "언제든 Google 계정으로 다시 로그인할 수 있어요.",
+      confirmLabel: "로그아웃",
+      destructive: IS_TOSS_APP,
+      onConfirm: () => void confirmLogout(),
+    });
+  }
+
+  async function confirmLogout() {
+    setLoggingOut(true);
     try {
       const services = getFirebaseClientServices();
       if (services) await signOut(services.auth).catch(() => undefined);
-      await fetch("/api/auth/session", { method: "DELETE" }).catch(() => null);
+      await apiFetch("/api/auth/session", { method: "DELETE" }).catch(() => null);
     } finally {
       router.push("/");
       router.refresh();
@@ -560,7 +644,7 @@ export default function DashboardPage() {
             <UsersIcon />
             둘러보기
           </Link>
-          <Link href={`/${profile.username}`}>
+          <Link href={profileHref(profile.username)}>
             <EyeIcon />
             내 페이지 보기
           </Link>
@@ -706,7 +790,7 @@ export default function DashboardPage() {
                 <PlusIcon />
                 앱 추가
               </button>
-              <Link className="button button-quiet" href={`/${profile.username}`}>
+              <Link className="button button-quiet" href={profileHref(profile.username)}>
                 <EyeIcon />
                 내 페이지 보기
               </Link>
@@ -815,7 +899,19 @@ export default function DashboardPage() {
             </div>
 
             <div className="dashboard-app-list">
-              {apps.length === 0 && (
+              {loadStatus === "loading" && (
+                <Skeleton className="skeleton-app-card" count={3} />
+              )}
+
+              {loadStatus === "error" && (
+                <LoadError
+                  title="앱 목록을 불러오지 못했어요"
+                  description="연결을 확인하고 다시 시도해 주세요. 등록한 앱은 그대로 있어요."
+                  onRetry={() => setReloadToken((token) => token + 1)}
+                />
+              )}
+
+              {loadStatus === "ready" && apps.length === 0 && (
                 <div className="dashboard-empty-apps">
                   <span>
                     <SparkleIcon />
@@ -869,6 +965,12 @@ export default function DashboardPage() {
                         <i />
                         {statusLabel[app.status]}
                       </span>
+                      {app.health === "unreachable" && (
+                        <span className="app-health-warning">
+                          <AlertIcon />
+                          링크가 열리지 않아요
+                        </span>
+                      )}
                     </p>
                   </div>
                   <div className="dashboard-app-reactions">
@@ -985,6 +1087,11 @@ export default function DashboardPage() {
       </main>
 
       <MobileBottomNav active="home" username={profile.username} />
+
+      <ConfirmSheet
+        request={confirmRequest}
+        onClose={() => setConfirmRequest(null)}
+      />
 
       <div
         className={`sheet-scrim${sheetOpen ? " is-visible" : ""}`}
@@ -1132,16 +1239,11 @@ export default function DashboardPage() {
                   value={sheetTool}
                   onChange={(event) => setSheetTool(event.target.value)}
                 >
-                  <option value="codex">Codex</option>
-                  <option value="claude-code">Claude Code</option>
-                  <option value="lovable">Lovable</option>
-                  <option value="bolt">Bolt</option>
-                  <option value="replit">Replit</option>
-                  <option value="v0">v0</option>
-                  <option value="base44">Base44</option>
-                  <option value="cursor">Cursor</option>
-                  <option value="firebase-studio">Firebase Studio</option>
-                  <option value="other">기타</option>
+                  {Object.entries(TOOL_LABELS).map(([value, label]) => (
+                    <option key={value} value={value}>
+                      {label}
+                    </option>
+                  ))}
                 </select>
               </label>
               <label className="field-group">
